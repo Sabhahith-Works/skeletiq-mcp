@@ -1,0 +1,57 @@
+{
+  "name": "@skeletiq/mcp",
+  "version": "0.1.0",
+  "description": "Design in SkeletIQ, build with your coding agent. MCP server for the SkeletIQ architecture platform.",
+  "license": "MIT",
+  "author": "Sabhahith Works Private Limited",
+  "homepage": "https://skeletiq.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/skeletiq/skeletiq.git",
+    "directory": "packages/mcp"
+  },
+  "keywords": [
+    "mcp",
+    "modelcontextprotocol",
+    "architecture",
+    "system-design",
+    "skeletiq"
+  ],
+  "mcpName": "com.skeletiq/mcp",
+  "type": "module",
+  "bin": {
+    "skeletiq-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.13.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.6.2",
+    "typescript-eslint": "^8.11.0",
+    "vitest": "^4.0.18"
+  }
+}

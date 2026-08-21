@@ -1,0 +1,24 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "lib": ["ES2023"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "types": ["node"],
+        "outDir": "dist",
+        "rootDir": ".",
+        "strict": true,
+        "noUncheckedIndexedAccess": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noFallthroughCasesInSwitch": true,
+        "exactOptionalPropertyTypes": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "verbatimModuleSyntax": true,
+        "isolatedModules": true,
+        "declaration": false,
+        "sourceMap": false
+    },
+    "include": ["src", "tests", "tsup.config.ts", "vitest.config.ts", "eslint.config.js"]
+}
