@@ -325,6 +325,68 @@ describe('readiness and gaps', () => {
     })
 })
 
+describe('a design whose gaps carry a recommendation', () => {
+    it('parses rather than erroring, because the server is allowed to add things', async () => {
+        const api = fakeApi([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
+                body: {
+                    items: [
+                        {
+                            id: ARCH_V2,
+                            project_id: PROJECT_ID,
+                            version: 2,
+                            is_released: true,
+                            architecture_json: {
+                                ...DESIGN,
+                                // The newer shape, alongside the older one, exactly as a real
+                                // payload mixes them: `z.array(z.string())` here would have made a
+                                // richer design a *parse error* rather than a richer design.
+                                open_questions: [
+                                    { text: 'Which region?', recommendation: 'eu-west-1', options: ['eu-west-1', 'us-east-1'] },
+                                ],
+                                assumptions: ['Traffic is read-heavy.'],
+                            },
+                        },
+                    ],
+                    total: 1,
+                },
+            },
+            { match: `GET /api/v1/projects/${PROJECT_ID}`, body: { id: PROJECT_ID, title: 'Shortener' } },
+        ])
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        expect(result.isError).toBeFalsy()
+        expect(result.structuredContent?.version).toBe(2)
+    })
+
+    it('does not hand the agent the proposal for a question that is still open', async () => {
+        await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
+                body: {
+                    project_id: PROJECT_ID,
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    gaps: [{ gap_id: 'a1', kind: 'open_question', text: 'Which region?', resolved: false }],
+                    unresolved_count: 1,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'gaps' })
+
+        // The recommendation is the design's own guess at a question nobody has answered, and
+        // this mode's whole instruction is "raise it, do not guess". Handing the agent a proposal
+        // to adopt is that guess, one step removed. It is shown to the people who can decide —
+        // the Grounding panel and the exported document — and to nobody who cannot.
+        expect(text(result)).toMatch(/1 unresolved/)
+        expect(text(result)).toMatch(/questions for a person/)
+    })
+})
+
 describe('the build order', () => {
     it('says the order is not traffic direction, and shows what waits on what', async () => {
         await open([

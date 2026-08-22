@@ -74,6 +74,24 @@ export type Connection = z.infer<typeof ConnectionSchema>
  * Even `components` is only optional here — a version minted by a canvas save of an empty board
  * is a real row, and a client that throws on it is a client that cannot report the problem.
  */
+/**
+ * An open question or assumption: a bare string, or an object that also proposes an answer.
+ *
+ * The union is a read shim and is permanent — every design stored before recommendations existed
+ * holds plain strings. `z.array(z.string())` here would have made a newer design a *parse error*
+ * rather than a design with richer gaps, which is the sharpest possible version of this package's
+ * standing rule: the server is allowed to add things.
+ */
+const GapEntrySchema = z.union([
+    z.string(),
+    z.looseObject({
+        text: z.string(),
+        recommendation: z.string().nullable().optional(),
+        options: z.array(z.string()).nullable().optional(),
+        impact: z.string().nullable().optional(),
+    }),
+])
+
 export const ArchitectureJsonSchema = z.looseObject({
     title: z.string().optional(),
     description: z.string().optional(),
@@ -82,8 +100,8 @@ export const ArchitectureJsonSchema = z.looseObject({
     design_decisions: z.array(z.string()).nullable().optional(),
     trade_offs: z.array(z.string()).nullable().optional(),
     scalability_notes: z.string().nullable().optional(),
-    assumptions: z.array(z.string()).nullable().optional(),
-    open_questions: z.array(z.string()).nullable().optional(),
+    assumptions: z.array(GapEntrySchema).nullable().optional(),
+    open_questions: z.array(GapEntrySchema).nullable().optional(),
 })
 export type ArchitectureJson = z.infer<typeof ArchitectureJsonSchema>
 
