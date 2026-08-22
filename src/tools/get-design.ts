@@ -204,21 +204,53 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         const gaps = DesignGapListSchema.parse(body)
                         const facts = factsFrom(resolved)
                         const unresolved = gaps.gaps.filter((gap) => !gap.resolved)
+                        // A settled gap is an answer, and an answer is the most useful thing on
+                        // this list. Reporting only what is still open told an agent less the
+                        // more work the team had done — the one case where the summary must
+                        // grow, not shrink.
+                        const settled = gaps.gaps.filter((gap) => gap.resolved && gap.action !== 'dismissed')
                         return ok({ ...base, ...facts, data: gaps }, [
                             unresolved.length === 0
                                 ? 'Every open question and assumption in this design has been dealt with.'
                                 : `${unresolved.length} unresolved:`,
                             ...unresolved.map((gap) => `- [${gap.kind}] ${gap.text}`),
+                            ...(settled.length > 0
+                                ? ['', `${settled.length} settled during review — treat these as decided:`,
+                                   ...settled.map((gap) => `- [${gap.kind}] ${gap.text} → ${settledAnswer(gap)}`)]
+                                : []),
                             '',
-                            'These are questions for a person, not for you to answer. Raise them; do not',
-                            'guess and build on the guess. An API token cannot resolve them — that is done',
-                            'in the SkeletIQ app, on purpose.',
+                            'The unresolved ones are questions for a person, not for you to answer. Raise',
+                            'them; do not guess and build on the guess. An API token cannot resolve them —',
+                            'that is done in the SkeletIQ app, on purpose.',
                             versionLine(facts),
                         ].join('\n'))
                     }
                 }
             }),
     )
+}
+
+/**
+ * What a settled gap settled *to*, in the strongest form this endpoint carries.
+ *
+ * The design-gaps payload holds the disposition and the resolver's note, but not the prose of any
+ * Decision the answer minted — that lives on the ADR. So a linked Decision is reported as a
+ * pointer rather than paraphrased, and a bare `answered` with nothing written on it is stated as
+ * exactly that, because an agent told "answered" with no answer would fill the hole itself.
+ *
+ * The Decision outranks the note when both exist — the same order the handoff brief uses, which
+ * *can* read the prose — but the note is still printed, because it is the only wording this
+ * response carries at all.
+ */
+function settledAnswer(gap: { action?: string | null; note?: string | null; adr_id?: string | null }): string {
+    const note = (gap.note ?? '').trim()
+    if (gap.adr_id) {
+        const pointer = `recorded as a Decision (${gap.adr_id})`
+        return note ? `${pointer} — ${note}` : pointer
+    }
+    if (note) return note
+    if (gap.action === 'confirmed') return 'confirmed as it stands'
+    return 'answered, but no wording was recorded — ask before relying on it'
 }
 
 function describeRow(row: { count: number; state: string; detail?: string | null }): string {

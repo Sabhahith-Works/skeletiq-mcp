@@ -263,7 +263,7 @@ describe('readiness and gaps', () => {
         expect(text(result)).not.toMatch(/Fitness rules failing: 0/)
     })
 
-    it('says gaps are questions for a person and that a token cannot resolve them', async () => {
+    it('says open gaps are questions for a person and that a token cannot resolve them', async () => {
         await open([
             {
                 match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
@@ -284,9 +284,44 @@ describe('readiness and gaps', () => {
 
         expect(text(result)).toMatch(/1 unresolved/)
         expect(text(result)).toMatch(/Which region\?/)
-        expect(text(result)).not.toMatch(/Traffic is read-heavy/)
         expect(text(result)).toMatch(/do not\s+guess/i)
         expect(text(result)).toMatch(/API token cannot resolve them/)
+        // The "for a person" instruction covers the open ones. A settled gap is
+        // already a person's answer, and telling the agent to go ask again would
+        // send it back to the team with a question they have closed.
+        expect(text(result)).toMatch(/Traffic is read-heavy\.? → confirmed as it stands/)
+    })
+
+    it('reports what was settled during review, because that is the answer', async () => {
+        await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
+                body: {
+                    project_id: PROJECT_ID,
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    gaps: [
+                        { gap_id: 'a1', kind: 'open_question', text: 'Which region?', resolved: true, action: 'answered', note: 'eu-west-1.' },
+                        { gap_id: 'b2', kind: 'open_question', text: 'Which queue?', resolved: true, action: 'answered', adr_id: 'adr-7', note: 'SQS.' },
+                        { gap_id: 'c3', kind: 'open_question', text: 'Which cache?', resolved: true, action: 'answered' },
+                        { gap_id: 'd4', kind: 'assumption', text: 'Single tenant.', resolved: true, action: 'dismissed', note: 'Not this design.' },
+                    ],
+                    unresolved_count: 0,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'gaps' })
+
+        expect(text(result)).toMatch(/3 settled during review/)
+        expect(text(result)).toMatch(/Which region\? → eu-west-1\./)
+        // No prose for the Decision on this endpoint, so it points rather than paraphrases —
+        // and keeps the note, which is the only wording this response actually carries.
+        expect(text(result)).toMatch(/Which queue\? → recorded as a Decision \(adr-7\) — SQS\./)
+        // An "answered" with nothing written on it must not read as an answer.
+        expect(text(result)).toMatch(/Which cache\? → answered, but no wording was recorded/)
+        // Dismissed means "does not apply here" — re-raising it is the bug, not the fix.
+        expect(text(result)).not.toMatch(/Single tenant/)
     })
 })
 
