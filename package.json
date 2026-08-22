@@ -5,11 +5,6 @@
   "license": "MIT",
   "author": "Sabhahith Works Private Limited",
   "homepage": "https://skeletiq.com",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/skeletiq/skeletiq.git",
-    "directory": "packages/mcp"
-  },
   "keywords": [
     "mcp",
     "modelcontextprotocol",
