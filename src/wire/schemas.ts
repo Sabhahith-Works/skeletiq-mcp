@@ -242,6 +242,9 @@ export const PayloadCritiqueSchema = z.looseObject({
     risks: z.array(z.string()).optional(),
     recommendations: z.array(z.string()).optional(),
     strengths: z.array(z.string()).optional(),
+    compliance_assessed: z.boolean().optional(),
+    frameworks_checked: z.array(z.string()).optional(),
+    compliance_note: z.string().nullable().optional(),
 })
 
 // ─── Generation ──────────────────────────────────────────────────────

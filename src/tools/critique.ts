@@ -27,6 +27,16 @@ const input = z.object({
             'A design to check. Free and deterministic — no model call. The shape SkeletIQ uses: ' +
                 'title, description, components[{id,name,type,technology?}], connections[{source,target,protocol?}].',
         ),
+    domain: z
+        .string()
+        .optional()
+        .describe(
+            "The design's domain — e-commerce, fintech, healthcare, saas, social, iot, gaming, " +
+                'infrastructure, streaming, logistics, education. Worth sending: the domain is what ' +
+                'selects the compliance frameworks to check against, and without it none apply, so no ' +
+                'compliance finding is possible and the score comes back higher than the SkeletIQ app ' +
+                'would show for the same design — by up to 15 points.',
+        ),
 })
 
 const output = z.object({
@@ -45,6 +55,11 @@ const output = z.object({
         }),
     ),
     finding_count: z.number(),
+    compliance_assessed: z
+        .boolean()
+        .describe('False means no compliance framework was checked, so no compliance finding was possible.'),
+    frameworks_checked: z.array(z.string()),
+    compliance_note: z.string().nullable(),
 })
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'info']
@@ -62,7 +77,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
             outputSchema: output,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
         },
-        async ({ architecture_json }) =>
+        async ({ architecture_json, domain }) =>
             guard(async () => {
                 if (!architecture_json) {
                     throw new Error(
@@ -75,7 +90,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 const critique = PayloadCritiqueSchema.parse(
                     await client.request<unknown>('/handoff/critique', {
                         method: 'POST',
-                        body: { architecture_json },
+                        body: { architecture_json, domain },
                     }),
                 )
 
@@ -89,6 +104,9 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                         remediation: finding.remediation ?? '',
                     }))
 
+                // Reported, not inferred from an empty list: "no frameworks" and "no domain to
+                // pick frameworks from" are different answers, and only the server knows which.
+                const complianceAssessed = critique.compliance_assessed ?? false
                 const structured = {
                     architecture_score: critique.architecture_score,
                     security_score: critique.security_score,
@@ -97,12 +115,22 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     data_score: critique.data_score,
                     findings,
                     finding_count: findings.length,
+                    compliance_assessed: complianceAssessed,
+                    frameworks_checked: critique.frameworks_checked ?? [],
+                    compliance_note: critique.compliance_note ?? null,
                 }
 
                 const lines = [
                     `Architecture ${round(critique.architecture_score)}/100 · ` +
                         `security ${round(critique.security_score)} · performance ${round(critique.performance_score)} · ` +
                         `resilience ${round(critique.resilience_score)} · data ${round(critique.data_score)}`,
+                    '',
+                    // An agent that reads only the text has to see this too. Without it, "the app
+                    // said 59 and the tool said 74" is an unexplained contradiction it will either
+                    // resolve wrongly or report as a bug.
+                    complianceAssessed
+                        ? `Compliance checked against ${(critique.frameworks_checked ?? []).join(', ')}.`
+                        : (critique.compliance_note ?? 'Compliance was not assessed.'),
                     '',
                     findings.length === 0 ? 'No findings.' : `${findings.length} finding(s):`,
                     ...findings.map(
