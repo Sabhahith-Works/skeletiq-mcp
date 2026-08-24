@@ -37,6 +37,17 @@ const input = z.object({
                 'compliance finding is possible and the score comes back higher than the SkeletIQ app ' +
                 'would show for the same design — by up to 15 points.',
         ),
+    secondary_domains: z
+        .array(z.string())
+        .max(8)
+        .optional()
+        .describe(
+            'Further domains the design spans, when it spans more than one — a multi-tenant shop ' +
+                'that takes payments is e-commerce plus fintech and saas. These select frameworks on ' +
+                "top of the primary domain's, so leaving them off is why a design already checked " +
+                'against SOC2 and SOX in the app comes back here checked against neither, and scored ' +
+                'higher for it. frameworks_checked says which were actually used.',
+        ),
 })
 
 const output = z.object({
@@ -77,7 +88,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
             outputSchema: output,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
         },
-        async ({ architecture_json, domain }) =>
+        async ({ architecture_json, domain, secondary_domains }) =>
             guard(async () => {
                 if (!architecture_json) {
                     throw new Error(
@@ -90,7 +101,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 const critique = PayloadCritiqueSchema.parse(
                     await client.request<unknown>('/handoff/critique', {
                         method: 'POST',
-                        body: { architecture_json, domain },
+                        body: { architecture_json, domain, secondary_domains },
                     }),
                 )
 
