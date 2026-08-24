@@ -106,6 +106,41 @@ describe('money', () => {
     })
 })
 
+describe('the daily generation allowance', () => {
+    it('reports the refusal as prose, never as the payload it arrived in', async () => {
+        // The regression this pins: the gate's detail carried its sentence under `error` and no
+        // `message`, so `error.message` was the dict's Python repr and an agent was handed
+        // `{'error': 'Rate limit exceeded', 'action': 'generate', ...}` to reason about.
+        const text = await callWith(
+            429,
+            envelope('DAILY_LIMIT_REACHED', "You've used all 5 of today's design generations on the free plan.", {
+                code: 'DAILY_LIMIT_REACHED',
+                message: "You've used all 5 of today's design generations on the free plan.",
+                limit: 5,
+                current: 5,
+                plan: 'free',
+                reset_at: '2026-08-25T00:00:00+00:00',
+                upgrade_url: '/settings#billing',
+            }),
+        )
+
+        expect(text).toContain("You've used all 5 of today's design generations on the free plan.")
+        expect(text).toContain('2026-08-25T00:00:00+00:00')
+        expect(text).toContain('/settings#billing')
+        expect(text).not.toMatch(/\{'error'/)
+    })
+
+    it('is not retryable, unlike every other 429', async () => {
+        // An allowance that refills in hours cannot be waited out inside a session; a caller
+        // backing off and retrying would spend its budget on a call that cannot succeed today.
+        const spent = parseApiError(429, { error: { code: 'DAILY_LIMIT_REACHED', message: 'spent' } }, undefined)
+        const burst = parseApiError(429, { error: { code: 'RATE_LIMITED', message: 'slow down' } }, undefined)
+
+        expect(spent.isRetryable).toBe(false)
+        expect(burst.isRetryable).toBe(true)
+    })
+})
+
 describe('availability', () => {
     it('says a refused idempotency check cost nothing', async () => {
         const text = await callWith(

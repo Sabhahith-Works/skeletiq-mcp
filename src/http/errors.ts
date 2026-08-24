@@ -45,8 +45,15 @@ export class SkeletiqApiError extends Error {
         this.retryAfterSeconds = args.retryAfterSeconds
     }
 
-    /** A `GET` may be retried after a 429; a `POST` that may have spent credits may not. */
+    /**
+     * A `GET` may be retried after a 429; a `POST` that may have spent credits may not.
+     *
+     * A spent daily allowance is the one 429 that is *not* retryable: it refills on a clock
+     * measured in hours, so a caller backing off and trying again is burning its budget on a
+     * call that cannot succeed today.
+     */
     get isRetryable(): boolean {
+        if (this.code === 'DAILY_LIMIT_REACHED') return false
         return this.status === 429 || this.code === 'IDEMPOTENCY_UNAVAILABLE'
     }
 }
@@ -139,6 +146,20 @@ export function describeApiError(error: SkeletiqApiError): string {
                     if (typeof solution === 'string') lines.push(`- ${solution}`)
                 }
             }
+            break
+        }
+
+        case 'DAILY_LIMIT_REACHED': {
+            // The account's `generations_per_day` is spent. Distinct from RATE_LIMITED below
+            // because the answer is different: this one is not a "slow down" the agent can
+            // back off from within a session — the allowance refills on a clock, and the
+            // payload names the moment. Retrying the same call in a minute cannot succeed,
+            // so say so rather than let an agent burn its budget rediscovering that.
+            lines.push(error.message)
+            const resetAt = asString(detail?.reset_at)
+            if (resetAt) lines.push(`The allowance refills at ${resetAt}.`)
+            const upgradeUrl = asString(detail?.upgrade_url)
+            if (upgradeUrl) lines.push(`A larger plan raises the daily limit: ${upgradeUrl}`)
             break
         }
 
