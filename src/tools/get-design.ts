@@ -146,6 +146,14 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             brief.is_draft
                                 ? 'This design is a DRAFT. It has not been released and can change without notice.'
                                 : '',
+                            // Said here as well as inside the block, because a model that acts on
+                            // this tool response without re-reading the markdown it just wrote to
+                            // disk would otherwise never learn it. `check_drift` defaults to "this
+                            // repo is the whole design", and a repo implementing part of one gets
+                            // every component built elsewhere reported as missing.
+                            'If this repository implements only PART of the design, pass `covers` to',
+                            'check_drift with just the component ids you are responsible for. The block',
+                            'below lists every id under "What this repo covers".',
                             '',
                             brief.markdown,
                             '',

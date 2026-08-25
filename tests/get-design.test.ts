@@ -174,6 +174,19 @@ describe('the brief', () => {
         expect(text(result)).toContain('skeletiq:brief:start')
     })
 
+    it('tells a partial repo to declare what it covers', async () => {
+        // `check_drift` defaults to "this repo is the whole design", so a repo implementing three
+        // of twelve components reports nine failures on a green build. Said in the tool response
+        // as well as inside the block, because a model that acts on this response without
+        // re-reading the markdown it just wrote to disk would never see the block's own copy.
+        await open([{ match: `GET /api/v1/architectures/${ARCH_V2}/brief`, body: brief() }])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'brief' })
+
+        expect(text(result)).toMatch(/implements only PART of the design/)
+        expect(text(result)).toMatch(/pass `covers` to/)
+    })
+
     it('labels a draft brief as one', async () => {
         await open([
             {
