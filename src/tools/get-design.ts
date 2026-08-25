@@ -183,13 +183,21 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         const buildOrder = BuildOrderSchema.parse(body)
                         const facts = factsFromRelease(resolved, buildOrder.release)
                         return ok({ ...base, ...facts, data: { steps: buildOrder.steps } }, [
-                            'Build in this order. It is derived from what each component *is*, not from',
-                            'traffic direction — stores and queues exist before the things that use them.',
+                            'Build in this order. It follows the dependency graph — an arrow means the',
+                            'source calls the target, so the target is built first — and falls back to what',
+                            'each component *is* wherever the graph is silent.',
                             ...buildOrder.steps.map((step) => {
-                                const deps = (step.depends_on ?? []).join(', ')
+                                // `depends_on` holds every dependency, including any the order could
+                                // not honour. Rendering all of them as "after" would tell an agent to
+                                // wait for something built later, so the two are said separately.
+                                const blocked = new Set(step.blocked_by ?? [])
+                                const after = (step.depends_on ?? []).filter((id) => !blocked.has(id))
                                 return (
                                     `${step.order}. ${step.name} (${step.component_id}) — ${step.reason}` +
-                                    (deps ? ` [after: ${deps}]` : '')
+                                    (after.length ? ` [after: ${after.join(', ')}]` : '') +
+                                    (blocked.size
+                                        ? ` [cycle: it calls ${[...blocked].join(', ')}, built later — stub or defer that edge]`
+                                        : '')
                                 )
                             }),
                             '',

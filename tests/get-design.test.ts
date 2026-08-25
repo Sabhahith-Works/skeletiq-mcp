@@ -406,9 +406,38 @@ describe('the build order', () => {
 
         const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'build_order' })
 
-        expect(text(result)).toMatch(/not from\s+traffic direction/i)
+        // The prose no longer disclaims the graph — it explains which way the graph points, which
+        // is the thing that was actually wrong. An arrow is a call, so the callee is built first.
+        expect(text(result)).toMatch(/follows the dependency graph/i)
+        expect(text(result)).toMatch(/source calls the target, so the target is built first/i)
         expect(text(result)).toMatch(/1\. Links Database \(db\)/)
         expect(text(result)).toMatch(/\[after: db\]/)
+    })
+
+    it('never tells an agent to wait for something built later', async () => {
+        // `depends_on` holds every dependency now, including the one the order could not honour.
+        // Rendering all of them as "after" would send an agent to build a component after
+        // something that comes later in the very list it is reading.
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/build-order`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    steps: [
+                        { order: 1, component_id: 'payments', name: 'Payment Service', type: 'service', reason: 'Business logic.', depends_on: ['psp'], blocked_by: ['psp'] },
+                        { order: 2, component_id: 'psp', name: 'External Payment Gateway', type: 'external', reason: 'Outside your control.', depends_on: ['payments'], blocked_by: [] },
+                    ],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'build_order' })
+
+        expect(text(result)).not.toMatch(/\[after: psp\]/)
+        expect(text(result)).toMatch(/cycle: it calls psp, built later/)
+        expect(text(result)).toMatch(/\[after: payments\]/)
     })
 })
 

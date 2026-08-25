@@ -146,6 +146,8 @@ export const BuildStepSchema = z.looseObject({
     technology: z.string().nullable().optional(),
     reason: z.string(),
     depends_on: z.array(z.string()).optional(),
+    /** The `depends_on` entries built *after* this step — non-empty only where the design cycles. */
+    blocked_by: z.array(z.string()).optional(),
 })
 
 export const BuildOrderSchema = z.looseObject({
