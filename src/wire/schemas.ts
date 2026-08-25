@@ -265,6 +265,36 @@ export const PayloadCritiqueSchema = z.looseObject({
 
 // ─── Generation ──────────────────────────────────────────────────────
 
+/**
+ * One question the honesty gate asks before it will design from a vague prompt.
+ *
+ * Deterministic and template-based server-side — no model writes these — so the `id` is stable
+ * and is the key an answer must be sent back under.
+ */
+export const ClarifyingQuestionSchema = z.looseObject({
+    id: z.string(),
+    question: z.string(),
+    why: z.string().optional(),
+    kind: z.string().optional(),
+    options: z.array(z.string()).nullable().optional(),
+    decline_options: z.array(z.string()).nullable().optional(),
+})
+export type ClarifyingQuestion = z.infer<typeof ClarifyingQuestionSchema>
+
+/**
+ * The 409 body when generation is refused: the intent decision, questions included.
+ *
+ * Read for the questions and nothing else. The refusal is recognised by their *presence*, not
+ * by an error code — the code on this envelope is the generic `CONFLICT`, and the same body is
+ * what a new-project recommendation sends. That is the rule the web client already applies.
+ */
+export const IntentDecisionSchema = z.looseObject({
+    intent: z.string().optional(),
+    reason: z.string().optional(),
+    new_project_recommended: z.boolean().optional(),
+    clarifying_questions: z.array(ClarifyingQuestionSchema).nullable().optional(),
+})
+
 export const GenerateResponseSchema = z.looseObject({
     response_mode: z.string().optional(),
     model_used: z.string().optional(),
