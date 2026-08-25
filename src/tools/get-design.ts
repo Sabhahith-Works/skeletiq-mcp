@@ -171,15 +171,35 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         // an agent that the thing blocking a release never blocked one.
                         const gates = readiness.rows.filter((row) => row.category === 'gate')
                         const open = gates.filter((row) => row.gating)
+                        // A gate whose check could not be answered reports `gating: false` — it is
+                        // not evidence of a problem — so it never appears in `open`. Keyed on
+                        // `gating` alone this block said "0 of 6 gate(s) still open" and listed
+                        // nothing, on a design that reports `ready: false`. The verdict is what
+                        // separates the two reasons a design is not ready.
+                        const unanswered = gates.filter((row) => row.state === 'unknown')
                         const advisories = readiness.rows.filter((row) => row.category !== 'gate')
-                        return ok({ ...base, ...facts, data: readiness }, [
-                            readiness.ready
+                        const unrun = new Set(readiness.unrun_checks ?? [])
+                        const verdict =
+                            readiness.verdict ?? (readiness.ready ? 'ready' : 'outstanding')
+                        const headline =
+                            verdict === 'ready'
                                 ? 'Every gate is clear — this design is ready to build.'
-                                : `${open.length} of ${gates.length} gate(s) still open:`,
-                            ...open.map((row) => `- ${row.label}: ${describeRow(row)}`),
+                                : verdict === 'unanswered'
+                                  ? `Nothing is undecided, but ${unanswered.length} check(s) could not be answered for this version:`
+                                  : `${open.length} of ${gates.length} gate(s) still open:`
+                        const listed = verdict === 'unanswered' ? unanswered : open
+                        return ok({ ...base, ...facts, data: readiness }, [
+                            headline,
+                            ...listed.map((row) => `- ${row.label}: ${describeRow(row)}`),
                             '',
                             'Advisory checks (they never block, and some need a paid plan to clear):',
-                            ...advisories.map((row) => `- ${row.label}: ${describeRow(row)}`),
+                            // An advisory that never ran is marked, not counted. "The advisor has
+                            // not looked at this design" is a fact an agent being handed work is
+                            // entitled to, and it is invisible in a bare count of open items.
+                            ...advisories.map(
+                                (row) =>
+                                    `- ${row.label}: ${describeRow(row)}${unrun.has(row.key) ? ' (never run on this version)' : ''}`,
+                            ),
                             '',
                             'Only a person can clear a gate. Ask; do not decide on their behalf.',
                             versionLine(facts),

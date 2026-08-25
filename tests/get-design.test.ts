@@ -276,6 +276,42 @@ describe('readiness and gaps', () => {
         expect(text(result)).not.toMatch(/Fitness rules failing: 0/)
     })
 
+    it('never says "0 gates still open" on a design it also calls not ready', async () => {
+        // The `unanswered` verdict: every gate clear, one of them unanswerable for this version.
+        // An unknown gate reports `gating: false` — it is not evidence of a problem — so a
+        // renderer keyed on `gating` alone finds nothing open and prints "0 of 2 gate(s) still
+        // open" beside `ready: false`. Two statements about the same design that cannot both be
+        // acted on.
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: false,
+                    verdict: 'unanswered',
+                    unknown_gate_count: 1,
+                    unrun_checks: ['advisor_pending'],
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 0, state: 'clear', category: 'gate', gating: false },
+                        { key: 'release_blockers', label: 'Release blockers', count: 1, state: 'unknown', category: 'gate', gating: false, detail: 'Computed for version 4, not this one' },
+                        { key: 'advisor_pending', label: 'Advisor suggestions open', count: 0, state: 'unknown', category: 'advisory', gating: false },
+                    ],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
+
+        expect(text(result)).not.toMatch(/0 of \d+ gate\(s\) still open/)
+        expect(text(result)).toMatch(/1 check\(s\) could not be answered for this version/)
+        // And it names which one, with the version it actually answered for.
+        expect(text(result)).toMatch(/Release blockers: not checked/)
+        // The unrun advisory is marked rather than counted.
+        expect(text(result)).toMatch(/Advisor suggestions open: not checked \(never run on this version\)/)
+    })
+
     it('says open gaps are questions for a person and that a token cannot resolve them', async () => {
         await open([
             {

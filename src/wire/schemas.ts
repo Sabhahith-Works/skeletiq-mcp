@@ -172,7 +172,21 @@ export const ReadinessRowSchema = z.looseObject({
 export const ReadinessSchema = z.looseObject({
     architecture_id: z.string(),
     version: z.number(),
+    /** `verdict === 'ready'`. Kept for callers that only want the boolean. */
     ready: z.boolean(),
+    /**
+     * Three values, not two. `unanswered` means every gate is clear but at least one
+     * could not be answered for this version — a state that reports `ready: false`
+     * while no row is `gating`, so a renderer keyed on `gating` alone says "0 of 6
+     * gates still open" and means nothing by it.
+     *
+     * Optional so a server that predates the field parses rather than throwing; the
+     * caller falls back to the boolean.
+     */
+    verdict: z.enum(['ready', 'outstanding', 'unanswered']).optional(),
+    unknown_gate_count: z.number().optional(),
+    /** Keys of advisory rows whose check never ran. Named, never counted. */
+    unrun_checks: z.array(z.string()).optional(),
     rows: z.array(ReadinessRowSchema),
     release: ReleaseFactsSchema,
 })
