@@ -345,6 +345,83 @@ describe('polling a job', () => {
     })
 })
 
+/**
+ * `POST /chat/generate-async` answers 202, so a refusal raised inside the worker arrives here
+ * as a failed job rather than as the 409 the inline path throws. The two transports have to
+ * agree: the same three refusals, the same next call, and never "failed" on its own — an agent
+ * that is told a job failed retries it, and a declined run does not become acceptable on a
+ * second attempt.
+ */
+describe('a job that was declined rather than broken', () => {
+    const failedJob = (failureDetail: Record<string, unknown>, error: string) => [
+        {
+            match: 'GET /api/v1/chat/jobs/job-1',
+            body: {
+                job_id: 'job-1',
+                status: 'failed',
+                error,
+                progress: { type: 'done', status: 'failed', data: { error, failure_detail: failureDetail } },
+            },
+        },
+    ]
+
+    it('hands back the questions instead of the log sentence', async () => {
+        const api = fakeApi(
+            failedJob(
+                {
+                    kind: 'decision_refusal',
+                    code: 'CLARIFICATION_REQUIRED',
+                    clarifying_questions: [
+                        { id: 'q1', question: 'Roughly how many users?', why: 'It sets the scale.', options: ['~1k', '~1M'] },
+                    ],
+                },
+                'This prompt needs a few details before we can design it well.',
+            ),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('get_generation_status', { job_id: 'job-1' })
+
+        expect(result.structuredContent?.refusal_code).toBe('CLARIFICATION_REQUIRED')
+        expect(result.structuredContent?.clarifying_questions).toEqual([
+            { id: 'q1', question: 'Roughly how many users?', why: 'It sets the scale.', options: ['~1k', '~1M'] },
+        ])
+        expect(joined(result)).toMatch(/clarification_answers/)
+        expect(joined(result)).toMatch(/nothing was charged/i)
+    })
+
+    it('names a different tool when the prompt was a question, not a design', async () => {
+        const api = fakeApi(
+            failedJob(
+                { kind: 'decision_refusal', code: 'ASYNC_RESPONSE_MODE_UNSUPPORTED', response_mode: 'text', intent: 'explain' },
+                'Background generation only supports architecture responses.',
+            ),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('get_generation_status', { job_id: 'job-1' })
+
+        expect(result.structuredContent?.refusal_code).toBe('ASYNC_RESPONSE_MODE_UNSUPPORTED')
+        expect(joined(result)).toMatch(/wait: true|get_design/)
+    })
+
+    it('leaves an ordinary failure reported as an ordinary failure', async () => {
+        // The load-bearing negative. A malformed or absent detail must degrade to the old
+        // report, never swallow it: a broken run dressed as a refusal would tell the agent
+        // nothing was charged when something was.
+        const api = fakeApi(
+            failedJob({ kind: 'architecture_acceptance', graph_errors: ['orphan c3'] }, 'The model timed out.'),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('get_generation_status', { job_id: 'job-1' })
+
+        expect(result.structuredContent?.refusal_code).toBeNull()
+        expect(result.structuredContent?.clarifying_questions).toEqual([])
+        expect(joined(result)).toMatch(/The model timed out/)
+    })
+})
+
 function joined(result: { content: { text?: string }[] }): string {
     return result.content.map((block) => block.text ?? '').join('\n')
 }

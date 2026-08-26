@@ -306,6 +306,30 @@ export const GenerateResponseSchema = z.looseObject({
     degradations: z.array(z.string()).optional(),
 })
 
+/**
+ * The structured half of a failed job.
+ *
+ * `POST /chat/generate-async` answers **202**, so a refusal raised inside the worker has no
+ * HTTP status left to carry it: it lands as a failed job, and until the worker learned to
+ * store this, an agent polling `get_generation_status` got a sentence written for a log and
+ * nothing it could act on. The shape mirrors what `_bounded_decision_detail` writes.
+ */
+export const DecisionRefusalSchema = z.looseObject({
+    kind: z.literal('decision_refusal'),
+    code: z.string(),
+    response_mode: z.string().optional(),
+    intent: z.string().optional(),
+    new_project_recommended: z.boolean().optional(),
+    clarifying_questions: z.array(ClarifyingQuestionSchema).optional(),
+})
+
+export type DecisionRefusal = z.infer<typeof DecisionRefusalSchema>
+
+/** Where a job's terminal event keeps that detail. `progress` is otherwise free-form. */
+export const JobProgressSchema = z.looseObject({
+    data: z.looseObject({ failure_detail: z.unknown().optional() }).optional(),
+})
+
 export const JobSchema = z.looseObject({
     job_id: z.string(),
     status: z.string(),

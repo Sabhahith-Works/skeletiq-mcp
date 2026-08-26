@@ -26,9 +26,12 @@ import type { DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok } from '../lib/result.js'
 import {
     GenerateAsyncSchema,
+    DecisionRefusalSchema,
     IntentDecisionSchema,
+    JobProgressSchema,
     JobSchema,
     type ClarifyingQuestion,
+    type DecisionRefusal,
 } from '../wire/schemas.js'
 
 /** Frames worth telling the host about; the rest are noise at this granularity. */
@@ -197,6 +200,21 @@ const statusOutput = z.object({
     architecture_id: z.string().nullable(),
     error: z.string().nullable(),
     queue_state: z.string().nullable(),
+    /**
+     * Set when the run was *declined* rather than broken — the same three refusals the inline
+     * path answers with a 409. Nothing ran and nothing was charged, so the next call is a
+     * normal one, not a retry.
+     */
+    refusal_code: z.string().nullable(),
+    /** Non-empty only for a `CLARIFICATION_REQUIRED` refusal. */
+    clarifying_questions: z.array(
+        z.object({
+            id: z.string(),
+            question: z.string(),
+            why: z.string(),
+            options: z.array(z.string()),
+        }),
+    ),
 })
 
 export function registerGenerate(server: McpServer, client: SkeletiqClient, resolver: DesignResolver): void {
@@ -254,6 +272,8 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
         async ({ job_id }) =>
             guard(async () => {
                 const job = JobSchema.parse(await client.request<unknown>(`/chat/jobs/${job_id}`))
+                const refusal = decisionRefusal(job.progress)
+                const questions = refusalQuestions(refusal)
                 const structured = {
                     job_id: job.job_id,
                     status: job.status,
@@ -261,15 +281,94 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
                     architecture_id: job.architecture_id ?? null,
                     error: job.error ?? null,
                     queue_state: job.queue_state ?? null,
+                    refusal_code: refusal?.code ?? null,
+                    clarifying_questions: questions,
                 }
-                const lines = [`Generation ${job.job_id} is ${job.status}.`]
+                // A declined run is not a failed one, and saying "failed" without saying what to
+                // do next is what made this tool a dead end for the agent as well as the browser.
+                const lines = refusal
+                    ? refusalLines(job.job_id, refusal, questions)
+                    : [`Generation ${job.job_id} is ${job.status}.`]
                 if (job.status === 'completed' && job.project_id) {
                     lines.push(`Read it with get_design(project_id: "${job.project_id}").`)
                 }
-                if (job.error) lines.push(job.error)
+                if (job.error && !refusal) lines.push(job.error)
                 return ok(structured, lines.join('\n'))
             }),
     )
+}
+
+/**
+ * The refusal behind a failed job, or `undefined` if the job simply broke.
+ *
+ * Read from the job's terminal progress event rather than from `error`, which is one sentence
+ * written for a log. Anything unrecognised falls through to `undefined` — a malformed payload
+ * must degrade to the ordinary failure report, never replace it with a crash.
+ */
+function decisionRefusal(progress: unknown): DecisionRefusal | undefined {
+    const parsed = JobProgressSchema.safeParse(progress)
+    if (!parsed.success) return undefined
+    const refusal = DecisionRefusalSchema.safeParse(parsed.data.data?.failure_detail)
+    return refusal.success ? refusal.data : undefined
+}
+
+function refusalQuestions(refusal: DecisionRefusal | undefined) {
+    return (refusal?.clarifying_questions ?? []).map((question) => ({
+        id: question.id,
+        question: question.question,
+        why: question.why ?? '',
+        options: (question.options ?? []).filter(
+            (option) => !(question.decline_options ?? []).includes(option),
+        ),
+    }))
+}
+
+/**
+ * What the agent should do next, per refusal.
+ *
+ * Each of the three is a different next call, and naming the wrong one wastes a turn:
+ * clarification wants the same call with answers, an unsupported response mode wants a
+ * different *tool*, and a new-project recommendation wants a different project.
+ */
+function refusalLines(
+    jobId: string,
+    refusal: DecisionRefusal,
+    questions: ReturnType<typeof refusalQuestions>,
+): string[] {
+    const preamble = `Generation ${jobId} was declined before it ran. Nothing was generated and nothing was charged.`
+    switch (refusal.code) {
+        case 'CLARIFICATION_REQUIRED':
+            return [
+                preamble,
+                '',
+                ...questions.flatMap((question) => [
+                    `${question.id}: ${question.question}`,
+                    ...(question.why ? [`  Why it matters: ${question.why}`] : []),
+                    ...(question.options.length > 0 ? [`  For example: ${question.options.join(' · ')}`] : []),
+                ]),
+                '',
+                'Call generate_architecture again with the same prompt and clarification_answers keyed by ' +
+                    'those ids. Take the answers from the user rather than inventing them.',
+            ]
+        case 'ASYNC_RESPONSE_MODE_UNSUPPORTED':
+            return [
+                preamble,
+                'That prompt reads as a question about a design rather than a request to build one, and a ' +
+                    'queued run can only produce a design. Ask it again with wait: true, or read the existing ' +
+                    'design with get_design and answer from it.',
+            ]
+        case 'NEW_PROJECT_RECOMMENDED':
+            return [
+                preamble,
+                'That prompt describes a different system from the one in this project. Create a new project ' +
+                    'for it rather than adding a version here.',
+            ]
+        default:
+            // A code this build does not know is still worth reporting as a refusal: the
+            // "nothing was charged" half is true of all of them, and inventing advice for
+            // one we cannot interpret would be worse than naming it.
+            return [preamble, `Refused as: ${refusal.code}.`]
+    }
 }
 
 /**
