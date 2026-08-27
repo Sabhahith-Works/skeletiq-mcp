@@ -55,6 +55,8 @@ export const ComponentSchema = z.looseObject({
     description: z.string().nullable().optional(),
     technology: z.string().nullable().optional(),
     role: z.string().nullable().optional(),
+    /** Why the component is in the design (`core`, `security`, …) — see the API's `component_concerns`. */
+    concern: z.string().nullable().optional(),
     requirement_ids: z.array(z.string()).nullable().optional(),
 })
 export type Component = z.infer<typeof ComponentSchema>
