@@ -32,7 +32,8 @@ const input = z.object({
         .optional()
         .describe(
             "The design's domain — e-commerce, fintech, healthcare, saas, social, iot, gaming, " +
-                'infrastructure, streaming, logistics, education. Worth sending: the domain is what ' +
+                'infrastructure, streaming, logistics, ai-ml, search, data-analytics, content-platform, ' +
+                'internal-tool. Worth sending: the domain is what ' +
                 'selects the compliance frameworks to check against, and without it none apply, so no ' +
                 'compliance finding is possible and the score comes back higher than the SkeletIQ app ' +
                 'would show for the same design — by up to 15 points.',
