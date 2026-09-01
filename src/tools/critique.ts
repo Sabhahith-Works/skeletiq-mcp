@@ -51,8 +51,30 @@ const input = z.object({
         ),
 })
 
+/**
+ * What this tool's score is, said out loud.
+ *
+ * The app holds a stored version's headline to a *traceability ceiling* — a score is a claim,
+ * and requirement traceability is the evidence for it, so a design tracing 3 of 15 requirements
+ * cannot report an A. This tool is handed a design and no requirement set, so there is nothing
+ * to trace against and no ceiling to apply: the honest number is the uncapped one.
+ *
+ * That is fine, and it has to be labelled. One live design answered 99.4 here and 98 in the app,
+ * with nothing on either side saying which number was which — an agent reading both will either
+ * resolve the contradiction wrongly or report it as a bug.
+ */
+const SCORE_BASIS_FINDINGS_ONLY = 'findings_only'
+
+const SCORE_BASIS_NOTE =
+    'This score is findings only. It is not held to a traceability ceiling, because this tool is ' +
+    'given a design and no requirement set to trace it against. The app can show a lower number ' +
+    'for the same stored design for exactly that reason.'
+
 const output = z.object({
     architecture_score: z.number(),
+    score_basis: z
+        .literal(SCORE_BASIS_FINDINGS_ONLY)
+        .describe(SCORE_BASIS_NOTE),
     security_score: z.number(),
     performance_score: z.number(),
     resilience_score: z.number(),
@@ -121,6 +143,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 const complianceAssessed = critique.compliance_assessed ?? false
                 const structured = {
                     architecture_score: critique.architecture_score,
+                    score_basis: SCORE_BASIS_FINDINGS_ONLY as typeof SCORE_BASIS_FINDINGS_ONLY,
                     security_score: critique.security_score,
                     performance_score: critique.performance_score,
                     resilience_score: critique.resilience_score,
@@ -136,6 +159,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     `Architecture ${round(critique.architecture_score)}/100 · ` +
                         `security ${round(critique.security_score)} · performance ${round(critique.performance_score)} · ` +
                         `resilience ${round(critique.resilience_score)} · data ${round(critique.data_score)}`,
+                    SCORE_BASIS_NOTE,
                     '',
                     // An agent that reads only the text has to see this too. Without it, "the app
                     // said 59 and the tool said 74" is an unexplained contradiction it will either

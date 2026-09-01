@@ -142,3 +142,39 @@ describe('what the tool refuses', () => {
         expect(result.content?.[0]?.text).toMatch(/needs an architecture_json/)
     })
 })
+
+describe('which number this is', () => {
+    /**
+     * One live design answered 99.4 here and 98 in the app. Both were right: the app holds a
+     * stored version's headline to a traceability ceiling — a score is a claim and requirement
+     * traceability is the evidence for it — and this tool is handed a design with no requirement
+     * set, so there is nothing to trace against and no ceiling to apply.
+     *
+     * Neither side said which number it was. An agent reading both will either resolve the
+     * contradiction wrongly or report it as a bug, and both are worse than a label.
+     */
+
+    it('labels the score in the structured result', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            domain: 'e-commerce',
+        })
+
+        expect(result.structuredContent?.score_basis).toBe('findings_only')
+    })
+
+    it('says it in the text an agent reads, not only in the schema', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            domain: 'e-commerce',
+        })
+
+        const text = result.content?.[0]?.text ?? ''
+        expect(text).toMatch(/findings only/i)
+        expect(text).toMatch(/traceability ceiling/i)
+    })
+})
