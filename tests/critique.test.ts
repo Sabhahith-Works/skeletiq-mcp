@@ -178,3 +178,24 @@ describe('which number this is', () => {
         expect(text).toMatch(/traceability ceiling/i)
     })
 })
+
+describe('where the framework set came from', () => {
+    /**
+     * This tool has no parameter for naming a regime, so its scope is *always* inferred from the
+     * domain the agent sent. The app labels a domain-derived scope as a guess — an air-gapped
+     * plant is assessed for SOC 2 it never named, because the domain map holds `iot` to it — and
+     * an agent building from this answer needs the same warning.
+     */
+    it('says the set was inferred, not named', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            domain: 'e-commerce',
+        })
+
+        const text = result.content?.[0]?.text ?? ''
+        expect(text).toContain('GDPR, PCI-DSS')
+        expect(text).toMatch(/inferred from the domain you sent/i)
+    })
+})

@@ -165,7 +165,9 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     // said 59 and the tool said 74" is an unexplained contradiction it will either
                     // resolve wrongly or report as a bug.
                     complianceAssessed
-                        ? `Compliance checked against ${(critique.frameworks_checked ?? []).join(', ')}.`
+                        ? `Compliance checked against ${(critique.frameworks_checked ?? []).join(', ')} — `
+                          + 'the frameworks systems in this domain are usually held to, inferred from the '
+                          + 'domain you sent rather than from a regime anyone named. Confirm them.'
                         : (critique.compliance_note ?? 'Compliance was not assessed.'),
                     '',
                     findings.length === 0 ? 'No findings.' : `${findings.length} finding(s):`,
