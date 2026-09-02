@@ -49,6 +49,16 @@ const input = z.object({
                 'against SOC2 and SOX in the app comes back here checked against neither, and scored ' +
                 'higher for it. frameworks_checked says which were actually used.',
         ),
+    exposure: z
+        .enum(['public_internet', 'private_network', 'air_gapped'])
+        .optional()
+        .describe(
+            'Where the design runs. Worth sending: four checks — CDN, WAF, rate limiting and ' +
+                'multi-region — ask whether traffic arriving from the public internet is handled ' +
+                'safely, and they only apply to a system that takes any. Left unset, the design is ' +
+                'assessed as internet-facing, which is why an air-gapped design comes back told to ' +
+                'add a CDN. exposure_assessed says which exposure was actually used.',
+        ),
 })
 
 /**
@@ -94,6 +104,13 @@ const output = z.object({
         .describe('False means no compliance framework was checked, so no compliance finding was possible.'),
     frameworks_checked: z.array(z.string()),
     compliance_note: z.string().nullable(),
+    exposure_assessed: z
+        .string()
+        .describe(
+            'The exposure this critique was actually run under. An absent or unreadable exposure ' +
+                'is assessed as public_internet, so a value the server could not read shows up ' +
+                'here rather than arriving silently as four extra security findings.',
+        ),
 })
 
 const SEVERITY_ORDER = ['critical', 'high', 'medium', 'low', 'info']
@@ -111,7 +128,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
             outputSchema: output,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
         },
-        async ({ architecture_json, domain, secondary_domains }) =>
+        async ({ architecture_json, domain, secondary_domains, exposure }) =>
             guard(async () => {
                 if (!architecture_json) {
                     throw new Error(
@@ -124,7 +141,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 const critique = PayloadCritiqueSchema.parse(
                     await client.request<unknown>('/handoff/critique', {
                         method: 'POST',
-                        body: { architecture_json, domain, secondary_domains },
+                        body: { architecture_json, domain, secondary_domains, exposure },
                     }),
                 )
 
@@ -141,6 +158,9 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 // Reported, not inferred from an empty list: "no frameworks" and "no domain to
                 // pick frameworks from" are different answers, and only the server knows which.
                 const complianceAssessed = critique.compliance_assessed ?? false
+                // Reported for the same reason. A server too old to answer predates the axis
+                // and assessed the design as internet-facing, which is what the fallback says.
+                const exposureAssessed = critique.exposure_assessed ?? 'public_internet'
                 const structured = {
                     architecture_score: critique.architecture_score,
                     score_basis: SCORE_BASIS_FINDINGS_ONLY as typeof SCORE_BASIS_FINDINGS_ONLY,
@@ -153,6 +173,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     compliance_assessed: complianceAssessed,
                     frameworks_checked: critique.frameworks_checked ?? [],
                     compliance_note: critique.compliance_note ?? null,
+                    exposure_assessed: exposureAssessed,
                 }
 
                 const lines = [
@@ -169,6 +190,11 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                           + 'the frameworks systems in this domain are usually held to, inferred from the '
                           + 'domain you sent rather than from a regime anyone named. Confirm them.'
                         : (critique.compliance_note ?? 'Compliance was not assessed.'),
+                    // Only when the exposure used is not the one the agent chose. When a
+                    // non-public exposure *was* applied the server returns an
+                    // `exposure_scoped_checks` finding naming exactly which checks it took off
+                    // the table, and restating that list here would be a second copy to drift.
+                    ...exposureLines(exposure, exposureAssessed),
                     '',
                     findings.length === 0 ? 'No findings.' : `${findings.length} finding(s):`,
                     ...findings.map(
@@ -181,6 +207,38 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 return ok(structured, lines.join('\n'))
             }),
     )
+}
+
+/**
+ * What to say about an exposure the agent did not get.
+ *
+ * Two silences worth breaking, and one case worth leaving alone. Sending nothing is not a
+ * neutral default — it assesses the design as internet-facing, and an agent that never knew the
+ * input existed reads the resulting CDN and WAF findings as facts about its design. A value the
+ * server did not apply lands in the same place with the agent believing otherwise, which is what
+ * a SkeletIQ predating the exposure axis does to a perfectly valid `air_gapped`.
+ *
+ * An exposure that *was* honoured needs no line here: the server's own `exposure_scoped_checks`
+ * finding says which checks it took off the table, and that is the copy to trust.
+ */
+function exposureLines(requested: string | undefined, assessed: string): string[] {
+    if (requested === undefined) {
+        return [
+            'Assessed as internet-facing, because no exposure was sent. Four checks — CDN, WAF, ' +
+                'rate limiting and multi-region — only apply to a system that takes traffic from ' +
+                'the public internet; send exposure: "private_network" or "air_gapped" if this one ' +
+                'does not.',
+        ]
+    }
+    if (requested !== assessed) {
+        return [
+            `You sent exposure "${requested}" but the critique was run as ${assessed} — this ` +
+                'SkeletIQ server did not apply it, which one predating the exposure axis does. ' +
+                'The CDN, WAF, rate-limiting and multi-region checks therefore ran as though the ' +
+                'design were internet-facing.',
+        ]
+    }
+    return []
 }
 
 function rank(severity: string | undefined): number {

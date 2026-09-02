@@ -74,7 +74,7 @@ change your provider keys, see billing, or delete your account, whatever scopes 
 | `get_design` | Read a design, in one of six modes: `overview`, `component`, `brief`, `readiness`, `build_order`, `gaps`. |
 | `generate_architecture` | Design a system from a prompt. Spends credits and takes minutes. |
 | `get_generation_status` | Poll a generation started with `wait: false`. |
-| `critique_architecture` | Check a design against SkeletIQ's rules. Deterministic, free, stores nothing. |
+| `critique_architecture` | Check a design against SkeletIQ's rules. Deterministic, free, stores nothing. Tell it the `domain` and the `exposure`. |
 | `check_drift` | Report what you built; hear what is missing, half done, or not in the design. |
 
 ## How a session goes
@@ -86,7 +86,7 @@ change your provider keys, see billing, or delete your account, whatever scopes 
 5. `get_design(mode: "component", component_id: …)` → read each piece as you reach it.
 6. `check_drift(covers: [...])` → report progress.
 
-## Three things to know
+## Four things to know
 
 **The brief is a managed block.** It goes inside a `skeletiq:brief` HTML-comment fence in your
 `AGENTS.md`. A refresh replaces the whole block. Never append a second, and never edit inside one:
@@ -98,6 +98,14 @@ tell your repository it moved. The tools label drafts, and tell you when a newer
 **Component ids belong to one version.** A regeneration mints new ones. When `check_drift` returns
 unknown ids with suggestions, they are suggestions — put them to a person rather than assuming the
 mapping.
+
+**`critique_architecture`'s optional inputs are not neutral.** Omitting one does not skip a
+question; it answers it. With no `domain` and `secondary_domains`, no compliance framework applies,
+so no compliance finding is possible and the score comes back higher than the SkeletIQ app shows
+for the same design — by up to 15 points. With no `exposure`, the design is assessed as
+internet-facing, which is how an air-gapped system gets told to add a CDN and a WAF. The response
+says what was actually used — `frameworks_checked` and `exposure_assessed` — and the text output
+warns when a default was applied. Read those before reporting a score to a person.
 
 ## Which model runs a generation
 

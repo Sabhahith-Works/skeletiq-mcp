@@ -199,3 +199,101 @@ describe('where the framework set came from', () => {
         expect(text).toMatch(/inferred from the domain you sent/i)
     })
 })
+
+describe('where the design runs', () => {
+    /**
+     * The four exposure-scoped checks — CDN, WAF, rate limiting and multi-region — ask whether
+     * traffic arriving from the public internet is handled safely. The app has resolved that
+     * axis since it existed; this tool had no way to say it, so an air-gapped design submitted
+     * by an agent was assessed as internet-facing and came back told to add a CDN, in a
+     * remediation paragraph that says the check does not run on air-gapped designs.
+     */
+
+    it('sends the exposure the agent declared', async () => {
+        const api = await open(critiqueBody({ exposure_assessed: 'air_gapped' }))
+
+        const call = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            exposure: 'air_gapped',
+        })
+        expect(call.isError).toBeFalsy()
+
+        const sent = api.calls.find((call) => call.url.includes('/handoff/critique'))
+        expect(sent!.body).toMatchObject({ exposure: 'air_gapped' })
+    })
+
+    it('sends nothing when the caller does not say', async () => {
+        const api = await open()
+
+        const call = await harness!.call('critique_architecture', { architecture_json: ARCHITECTURE })
+        expect(call.isError).toBeFalsy()
+
+        const body = api.calls.find((call) => call.url.includes('/handoff/critique'))!.body as Record<string, unknown>
+        // Absent, not `"public_internet"`. The server defaults, and a caller reading the wire
+        // should not see a claim about where the system runs that nobody made.
+        expect(body.exposure).toBeUndefined()
+    })
+
+    it('reports the exposure the server actually used, not the one asked for', async () => {
+        await open(critiqueBody({ exposure_assessed: 'air_gapped' }))
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            exposure: 'air_gapped',
+        })
+
+        expect(result.structuredContent?.exposure_assessed).toBe('air_gapped')
+    })
+
+    it('warns, in the text, that saying nothing is not neutral', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', { architecture_json: ARCHITECTURE })
+
+        const text = result.content?.[0]?.text ?? ''
+        expect(text).toMatch(/no exposure was sent/i)
+        expect(text).toMatch(/air_gapped/)
+    })
+
+    it('says so when the server did not apply the exposure it was given', async () => {
+        // A SkeletIQ predating the exposure axis returns no `exposure_assessed`, so the tool
+        // falls back to `public_internet` — which is what that server actually did. Silence here
+        // would leave the agent believing its air-gapped design was assessed as one.
+        await open(critiqueBody())
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            exposure: 'air_gapped',
+        })
+
+        const text = result.content?.[0]?.text ?? ''
+        expect(result.structuredContent?.exposure_assessed).toBe('public_internet')
+        expect(text).toMatch(/did not apply it/i)
+    })
+
+    it('says nothing extra when the exposure was honoured', async () => {
+        // The server's own `exposure_scoped_checks` finding names the checks it took off the
+        // table. A second copy here is a second thing to keep true.
+        await open(critiqueBody({ exposure_assessed: 'private_network' }))
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            exposure: 'private_network',
+        })
+
+        const text = result.content?.[0]?.text ?? ''
+        expect(text).not.toMatch(/no exposure was sent/i)
+        expect(text).not.toMatch(/did not apply it/i)
+    })
+
+    it('refuses a value it cannot mean, rather than defaulting it silently', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            exposure: 'airgapped',
+        })
+
+        expect(result.isError).toBe(true)
+    })
+})
