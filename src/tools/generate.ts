@@ -249,7 +249,7 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
                 // run comes to lose what the inline run honours.
                 try {
                     if (wait === false) return await queueGeneration(client, body)
-                    return await streamGeneration(client, body, ctx)
+                    return await streamGeneration(client, body, ctx, resolver)
                 } catch (error) {
                     const questions = clarifyingQuestions(error)
                     if (!questions) throw error
@@ -462,6 +462,7 @@ async function streamGeneration(
     client: SkeletiqClient,
     body: Record<string, unknown>,
     ctx: ServerContext,
+    resolver: DesignResolver,
 ) {
     const progressToken = ctx.mcpReq._meta?.progressToken
     const response = await client.fetch('/chat/generate/stream', {
@@ -514,27 +515,62 @@ async function streamGeneration(
     const degradations = Array.isArray(finished.degradations)
         ? finished.degradations.filter((d): d is string => typeof d === 'string')
         : []
+    const created = architectureId ? await describeCreated(resolver, architectureId) : undefined
 
     return ok(
         {
             status: 'completed',
-            project_id: null,
+            project_id: created?.projectId ?? null,
             architecture_id: architectureId,
             version,
             job_id: null,
-            title: null,
-            component_count: null,
+            title: created?.title ?? null,
+            component_count: created?.componentCount ?? null,
             assistant_message: null,
             degradations,
             clarifying_questions: [],
         },
         [
-            architectureId
-                ? `Design generated as version ${version ?? '?'}.`
-                : 'SkeletIQ answered in prose rather than producing a design.',
-            'Read it with get_design, and get_design(mode: "readiness") before building — a fresh',
-            'design is a draft, and its open questions are the ones worth asking now.',
+            ...(architectureId
+                ? [
+                      `Design generated as version ${version ?? '?'}.`,
+                      created
+                          ? `Read it with get_design(project_id: "${created.projectId}").`
+                          : 'Read it with get_design. This run could not report which project it was written ' +
+                            'to — find that with list_projects rather than assuming one.',
+                      'Check get_design(mode: "readiness") before building — a fresh design is a draft, and',
+                      'its open questions are the ones worth asking now.',
+                  ]
+                : ['SkeletIQ answered in prose rather than producing a design.']),
             ...degradations.map((d) => `Degraded: ${d}`),
         ].join('\n'),
     )
+}
+
+/**
+ * The project the run just wrote to, which the stream does not say.
+ *
+ * The terminal `done` frame carries an architecture id and no project id — the API's `StreamChunk`
+ * has no such field — while `get_design` takes a project id and nothing else. Without this an
+ * agent that has just paid for a design cannot open it, and its only recovery is to list projects
+ * and guess, which is the one thing `list_projects` tells it not to do.
+ *
+ * Read through the resolver rather than the client: the read that follows is then served from
+ * cache instead of a second request, and a schema change has one place to land.
+ *
+ * **A failure here must not touch the result.** The design exists and has been charged for. A
+ * token carrying `generate` but not `read` is refused this lookup, and reporting that as a failed
+ * generation would invite the agent to pay for the whole thing again.
+ */
+async function describeCreated(resolver: DesignResolver, architectureId: string) {
+    try {
+        const design = await resolver.design(architectureId)
+        return {
+            projectId: design.project_id,
+            title: design.architecture_json.title ?? null,
+            componentCount: design.architecture_json.components?.length ?? null,
+        }
+    } catch {
+        return undefined
+    }
 }

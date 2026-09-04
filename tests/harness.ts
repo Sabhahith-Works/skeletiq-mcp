@@ -213,11 +213,23 @@ export function projectList(projects = [{ id: PROJECT_ID, title: 'Shortener', ar
     return { projects, total: projects.length, page: 1, page_size: 50 }
 }
 
+/**
+ * `GET /architectures/{id}` — one version on its own.
+ *
+ * Only the inline generate path reads this: every other tool arrives with a project id and is
+ * served from the version list. It is in `baseRoutes` so that path's happy case is the default,
+ * and a test that wants the lookup to fail overrides it explicitly.
+ */
+export function architectureDetail(id = ARCH_V3, version = 3) {
+    return { id, project_id: PROJECT_ID, version, architecture_json: DESIGN, is_released: false }
+}
+
 export function baseRoutes(extra: Route[] = []): Route[] {
     return [
         ...extra,
         { match: 'GET /api/v1/projects/', body: projectList() },
         { match: `GET /api/v1/projects/${PROJECT_ID}/architectures`, body: architecturePage() },
         { match: `GET /api/v1/projects/${PROJECT_ID}`, body: { id: PROJECT_ID, title: 'Shortener' } },
+        { match: 'GET /api/v1/architectures/', body: architectureDetail() },
     ]
 }

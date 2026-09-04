@@ -98,6 +98,60 @@ describe('the inline path', () => {
         const call = api.calls.find((entry) => entry.url.includes('/generate/stream'))
         expect((call?.body as { project_id: string }).project_id).toBe(PROJECT_ID)
     })
+
+    it('reports the project it wrote to, so the agent can open what it just paid for', async () => {
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [DONE] }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A link shortener' })
+
+        // The `done` frame names an architecture and no project, and `get_design` takes a project
+        // and nothing else. Without this the agent is left holding an id it cannot spend.
+        expect(result.structuredContent?.project_id).toBe(PROJECT_ID)
+        expect(result.structuredContent?.title).toBe('Link shortener')
+        expect(result.structuredContent?.component_count).toBe(3)
+        expect(joined(result)).toContain(`get_design(project_id: "${PROJECT_ID}")`)
+
+        // Through the resolver, so the read that follows is cached rather than fetched again.
+        expect(api.calls.filter((entry) => entry.url.endsWith(`/architectures/${ARCH_V3}`))).toHaveLength(1)
+    })
+
+    it('keeps a completed run completed when the token cannot read the design back', async () => {
+        const api = fakeApi(
+            baseRoutes([
+                { match: 'POST /api/v1/chat/generate/stream', sse: [DONE] },
+                {
+                    match: `GET /api/v1/architectures/${ARCH_V3}`,
+                    status: 403,
+                    body: { error: { code: 'INSUFFICIENT_SCOPE', message: 'Needs the read scope.' } },
+                },
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A link shortener' })
+
+        // A token with `generate` but not `read` is refused this lookup. The design exists and has
+        // been charged for; calling that a failed generation is what makes an agent pay twice.
+        expect(result.isError).toBeFalsy()
+        expect(result.structuredContent?.status).toBe('completed')
+        expect(result.structuredContent?.architecture_id).toBe(ARCH_V3)
+        expect(result.structuredContent?.project_id).toBeNull()
+        expect(joined(result)).toMatch(/list_projects/)
+    })
+
+    it('does not go looking for a project when the run produced no design', async () => {
+        const prose = JSON.stringify({ type: 'done', content: '', conversation_id: 'c1', architecture_id: null })
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [prose] }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A link shortener' })
+
+        expect(result.structuredContent?.architecture_id).toBeNull()
+        expect(api.calls.some((entry) => entry.url.includes('/api/v1/architectures/'))).toBe(false)
+        // Pointing an agent at a design that was never written is the same dead end in reverse.
+        expect(joined(result)).not.toMatch(/get_design/)
+    })
 })
 
 describe('the queued path', () => {
