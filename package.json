@@ -29,6 +29,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
