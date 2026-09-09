@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# The lockfile is deliberately not tracked. This package is developed inside an
+# npm workspace whose only lockfile is the one at the workspace root; a second
+# one here would resolve separately and drift from what actually ships.
+package-lock.json
+
+# Credentials. `.npmrc` is the one that matters: it is where an npm auth token
+# lands, and nothing else in this file would catch it.
+.npmrc
+.env
+.env.local
+*.pem
+
+# Local noise
+*.log
+*.tmp
+tmp/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
