@@ -120,7 +120,9 @@ argument, deliberately: the model asking for a design does not get to choose wha
 
 This repository is the source of the published `@skeletiq/mcp` package. The connector is developed
 in SkeletIQ's monorepo, alongside the API it talks to, and mirrored here — so the history you see is
-the package's real history, not a squashed snapshot.
+the package's real history, not a squashed snapshot. A pull request opened here cannot be merged,
+because the next sync would overwrite it; [CONTRIBUTING.md](./CONTRIBUTING.md) explains what to do
+instead.
 
 Node 20 or newer.
 
@@ -139,3 +141,6 @@ and without an account.
 
 MIT — see [LICENSE](./LICENSE). The SkeletIQ platform is AGPL-3.0-or-later; this connector is MIT so
 it can be embedded, vendored and forked freely.
+
+"SkeletIQ" is a mark of Sabhahith Works Private Limited — see [NOTICE](./NOTICE). Security reports go
+to security@skeletiq.com, not to the issue tracker: [SECURITY.md](./SECURITY.md).

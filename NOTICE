@@ -1,0 +1,12 @@
+@skeletiq/mcp
+Copyright (c) 2026 Sabhahith Works Private Limited
+
+This package is licensed under the MIT Licence — see LICENSE. It is the
+connector to the SkeletIQ platform, which is licensed AGPL-3.0-or-later. The
+connector is deliberately MIT so that it can be embedded in other people's
+toolchains, vendored, and forked without the platform's copyleft reaching into
+whatever it is connected to.
+
+"SkeletIQ" and the SkeletIQ logo are marks of Sabhahith Works Private Limited.
+The MIT Licence grants rights in the software; it does not grant any right to
+use those marks.
