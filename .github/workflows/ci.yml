@@ -43,6 +43,24 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
+      # npm 10.9.x cannot resolve this dependency tree: `npm install` dies inside
+      # arborist with "Cannot read properties of null (reading 'edgesOut')", and
+      # `vitest@^4` on its own reproduces it. Node 22 ships exactly that npm
+      # (10.9.8) while Node 20 ships 10.8.2 — which is why the first run of this
+      # workflow was green on 20 and red on 22, on identical source. Bisected in
+      # the node:22 image, then confirmed installing, linting, type-checking,
+      # building and testing on both 20 and 22 under npm 11.19.1.
+      #
+      # Pinned to the 11 major rather than `@latest`: npm 12 refuses to install
+      # on Node 20.20.2, so `@latest` would trade this failure for its mirror
+      # image on the other half of the matrix.
+      #
+      # Consumers are not affected and this is not a product defect: on the same
+      # broken npm, `npx -y @skeletiq/mcp` installs and runs the published
+      # tarball correctly. It is a clone-and-build problem only.
+      - name: Use an npm that can resolve this tree
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm install
 

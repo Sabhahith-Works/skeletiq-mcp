@@ -137,6 +137,11 @@ npm run lint
 The tests mock the SkeletIQ API rather than calling it, so a clean clone runs them without a token
 and without an account.
 
+**If `npm install` fails with `Cannot read properties of null (reading 'edgesOut')`,** you are on npm
+10.9.x — the version Node 22 ships — which cannot resolve this tree; `vitest@4` alone triggers it.
+`npm install -g npm@11` fixes it. This affects cloning and building only: installing the published
+package with `npx` works on that npm.
+
 ## Licence
 
 MIT — see [LICENSE](./LICENSE). The SkeletIQ platform is AGPL-3.0-or-later; this connector is MIT so
