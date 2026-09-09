@@ -5,6 +5,11 @@
   "description": "Hand a released SkeletIQ architecture to a coding agent: brief, build order, drift check.",
   "version": "0.1.0",
   "websiteUrl": "https://skeletiq.com",
+  "repository": {
+    "url": "https://github.com/Sabhahith-Works/skeletiq-mcp",
+    "source": "github",
+    "id": "1362914004"
+  },
   "packages": [
     {
       "registryType": "npm",

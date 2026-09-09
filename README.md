@@ -3,6 +3,7 @@
 [![npm](https://img.shields.io/npm/v/@skeletiq/mcp)](https://www.npmjs.com/package/@skeletiq/mcp)
 [![licence](https://img.shields.io/npm/l/@skeletiq/mcp)](./LICENSE)
 [![node](https://img.shields.io/node/v/@skeletiq/mcp)](https://nodejs.org)
+[![CI](https://github.com/Sabhahith-Works/skeletiq-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Sabhahith-Works/skeletiq-mcp/actions/workflows/ci.yml)
 
 Design in [SkeletIQ](https://skeletiq.com), build with your coding agent.
 
@@ -144,8 +145,12 @@ package with `npx` works on that npm.
 
 ## Licence
 
-MIT — see [LICENSE](./LICENSE). The SkeletIQ platform is AGPL-3.0-or-later; this connector is MIT so
-it can be embedded, vendored and forked freely.
+MIT — see [LICENSE](./LICENSE). Source:
+[Sabhahith-Works/skeletiq-mcp](https://github.com/Sabhahith-Works/skeletiq-mcp) — issues and questions
+go [there](https://github.com/Sabhahith-Works/skeletiq-mcp/issues).
+
+The SkeletIQ platform is AGPL-3.0-or-later; this connector is MIT so it can be embedded, vendored
+and forked freely.
 
 "SkeletIQ" is a mark of Sabhahith Works Private Limited — see [NOTICE](./NOTICE). Security reports go
 to security@skeletiq.com, not to the issue tracker: [SECURITY.md](./SECURITY.md).
