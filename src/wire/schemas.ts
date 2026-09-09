@@ -1,7 +1,7 @@
 /**
  * The wire, as zod.
  *
- * These mirror `packages/api/app/schemas/*.py` field for field. They are hand-maintained rather
+ * These mirror the SkeletIQ API's response schemas field for field. They are hand-maintained rather
  * than generated because this package is published separately and must keep working against a
  * server it was not built alongside — which is also why every object is **lenient**: unknown keys
  * pass through, and a field the server adds tomorrow does not break a client shipped today.
