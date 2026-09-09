@@ -1,0 +1,62 @@
+# CI for the public mirror of @skeletiq/mcp.
+#
+# This file is inert where it is written. GitHub Actions only reads workflows
+# from `.github/workflows` at a repository's root, and here that path is
+# `packages/mcp/.github/workflows` inside a monorepo — so nothing runs it there.
+# It becomes the repository's CI after `git subtree split --prefix=packages/mcp`
+# puts this package at the root of the mirror. It lives in the monorepo anyway
+# because nothing may originate in the mirror: a file committed only there is
+# not in the next split, and the next push would delete it.
+#
+# Deliberately NOT `cache: npm` on setup-node. Caching keys off a lockfile, and
+# this package does not ship one — the workspace it is developed in keeps a
+# single lockfile at its root, so a second one here would resolve separately and
+# drift from what actually ships. `npm install` is therefore correct rather than
+# lax: this job proves the package builds and passes standalone, and the
+# monorepo remains the gate a release goes through.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build & test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the floor `engines.node` declares and nothing has ever tested
+        # it; 22 is what the upstream monorepo's CI runs.
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: ESLint
+        run: npx eslint .
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      # Build before test: the tests import from `src`, so a broken build would
+      # otherwise pass here and fail at publish — and publishing is what this
+      # package is for.
+      - name: Build
+        run: npx tsup
+
+      - name: Vitest
+        run: npx vitest run
