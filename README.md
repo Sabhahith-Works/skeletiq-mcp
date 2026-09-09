@@ -1,5 +1,9 @@
 # @skeletiq/mcp
 
+[![npm](https://img.shields.io/npm/v/@skeletiq/mcp)](https://www.npmjs.com/package/@skeletiq/mcp)
+[![licence](https://img.shields.io/npm/l/@skeletiq/mcp)](./LICENSE)
+[![node](https://img.shields.io/node/v/@skeletiq/mcp)](https://nodejs.org)
+
 Design in [SkeletIQ](https://skeletiq.com), build with your coding agent.
 
 SkeletIQ turns a prompt into a critiqued system architecture — components, data stores,
@@ -112,7 +116,26 @@ warns when a default was applied. Read those before reporting a score to a perso
 Whichever one the account holder chose under **Settings → Agent access**. The tools take no runtime
 argument, deliberately: the model asking for a design does not get to choose what it costs you.
 
+## Development
+
+This repository is the source of the published `@skeletiq/mcp` package. The connector is developed
+in SkeletIQ's monorepo, alongside the API it talks to, and mirrored here — so the history you see is
+the package's real history, not a squashed snapshot.
+
+Node 20 or newer.
+
+```bash
+npm install
+npm test          # vitest — hermetic: no network, no services, nothing to seed
+npm run build     # tsup, to dist/index.js
+npm run typecheck
+npm run lint
+```
+
+The tests mock the SkeletIQ API rather than calling it, so a clean clone runs them without a token
+and without an account.
+
 ## Licence
 
-MIT — see [LICENSE](./LICENSE). The rest of the SkeletIQ repository is AGPL-3.0-or-later; this
-connector is MIT so it can be embedded, vendored and forked freely.
+MIT — see [LICENSE](./LICENSE). The SkeletIQ platform is AGPL-3.0-or-later; this connector is MIT so
+it can be embedded, vendored and forked freely.
