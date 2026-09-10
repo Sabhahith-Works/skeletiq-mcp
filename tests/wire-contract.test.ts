@@ -179,24 +179,13 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
  * quietly outlived.
  */
 const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
-    ReadinessSchema: {
-        release_warnings:
-            'What releasing this version would be carrying, one sentence each. A person clicking ' +
-            'Release sees exactly this list, headed "It will carry:". An agent asking the same ' +
-            'question is told nothing. Fixed in this release.',
-    },
-    DesignGapListSchema: {
-        orphaned_answers:
-            'Answers whose question is no longer in this version. The API records them precisely so ' +
-            'they are not silently dropped, and the connector then silently drops them. Fixed in ' +
-            'this release.',
-    },
     CritiqueFindingSchema: {
         advisory_only:
             'A finding reported in full and never charged against the score. An agent handed a ' +
             'high-severity advisory finding treats it as a blocker the product does not consider ' +
-            'one. Unlike the three above this is a documented narrowing rather than an accident, so ' +
-            'widening the tool output is an owner decision, not yet taken.',
+            'one. It differs from the fields that emptied this table in being a documented ' +
+            "narrowing rather than an accident — the critique tool's `outputSchema` publishes five " +
+            'finding fields on purpose — so widening it is an owner decision, not yet taken.',
     },
 }
 

@@ -1067,6 +1067,45 @@
         }
       }
     },
+    "OrphanedAnswerSchema": {
+      "python_model": "app.schemas.handoff.OrphanedAnswerResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in design-gaps.orphaned_answers"
+      ],
+      "fields": {
+        "action": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "adr_id": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "gap_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "kind": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "note": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        }
+      }
+    },
     "PayloadCritiqueSchema": {
       "python_model": "app.schemas.handoff.PayloadCritiqueResponse",
       "authority": "response_model",

@@ -222,6 +222,15 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                                 (row) =>
                                     `- ${row.label}: ${describeRow(row)}${unrun.has(row.key) ? ' (never run on this version)' : ''}`,
                             ),
+                            // The same list, under the same heading, as the app shows beside its
+                            // Release button. A person clicking Release is told what the release
+                            // takes with it; an agent asking the same question of the same version
+                            // was told nothing at all. A warning, never a refusal — it does not
+                            // move the verdict and it does not stop anyone.
+                            ...(readiness.release_warnings?.length
+                                ? ['', 'It will carry:',
+                                   ...readiness.release_warnings.map((warning) => `- ${warning}`)]
+                                : []),
                             '',
                             'Only a person can clear a gate. Ask; do not decide on their behalf.',
                             versionLine(facts),
@@ -267,6 +276,7 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         // more work the team had done — the one case where the summary must
                         // grow, not shrink.
                         const settled = gaps.gaps.filter((gap) => gap.resolved && gap.action !== 'dismissed')
+                        const orphaned = gaps.orphaned_answers ?? []
                         return ok({ ...base, ...facts, data: gaps }, [
                             unresolved.length === 0
                                 ? 'Every open question and assumption in this design has been dealt with.'
@@ -275,6 +285,20 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             ...(settled.length > 0
                                 ? ['', `${settled.length} settled during review — treat these as decided:`,
                                    ...settled.map((gap) => `- [${gap.kind}] ${gap.text} → ${settledAnswer(gap)}`)]
+                                : []),
+                            // A gap is identified by a hash of its own text, so a regeneration that
+                            // re-words a question strands the answer that settled it. The server
+                            // reports those rather than dropping them, and then this dropped them.
+                            // A count and a sentence, not rows: the stored answer has no text to
+                            // show, and it is not work anyone can pick up.
+                            ...(orphaned.length
+                                ? ['',
+                                   `${orphaned.length} earlier answer(s) do not match any question in this version` +
+                                       ' — re-worded or dropped when it was generated, or asked only in a different' +
+                                       ' version. Any Decision they minted still stands.',
+                                   ...orphaned
+                                       .filter((answer) => answer.adr_id)
+                                       .map((answer) => `- [${answer.kind}] ${answer.action} → Decision ${answer.adr_id}`)]
                                 : []),
                             '',
                             'The unresolved ones are questions for a person, not for you to answer. Raise',

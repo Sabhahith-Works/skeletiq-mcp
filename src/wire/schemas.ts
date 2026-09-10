@@ -215,6 +215,14 @@ export const ReadinessSchema = z.looseObject({
     unrun_checks: z.array(z.string()).optional(),
     rows: z.array(ReadinessRowSchema),
     release: ReleaseFactsSchema,
+    /**
+     * What releasing this version would be carrying, one sentence each. A warning, never a refusal.
+     *
+     * The same list the app shows beside its Release button, under the heading "It will carry:".
+     * Optional here only so a server that predates the field still parses — it is required on the
+     * wire, and an empty array is the server saying it looked and found nothing.
+     */
+    release_warnings: z.array(z.string()).optional(),
 })
 
 export const DesignGapSchema = z.looseObject({
@@ -227,12 +235,31 @@ export const DesignGapSchema = z.looseObject({
     adr_id: z.string().nullable().optional(),
 })
 
+/**
+ * An answer with no matching question in the version being read.
+ *
+ * A gap is identified by a hash of its own text, so a regeneration that re-words a question mints a
+ * new id and leaves the answer filed against wording nobody will see again. The server reports
+ * those rather than dropping them. There is no `text`: the stored row holds the id, the kind and
+ * the disposition, and `adr_id` is the recovery path — where the answer minted a Decision, that
+ * Decision holds what was decided.
+ */
+export const OrphanedAnswerSchema = z.looseObject({
+    gap_id: z.string(),
+    kind: z.string(),
+    action: z.string(),
+    note: z.string().nullable().optional(),
+    adr_id: z.string().nullable().optional(),
+})
+
 export const DesignGapListSchema = z.looseObject({
     project_id: z.string(),
     architecture_id: z.string().nullable().optional(),
     version: z.number().nullable().optional(),
     gaps: z.array(DesignGapSchema),
     unresolved_count: z.number(),
+    /** Answers whose question is not in this version — recorded, not silently dropped. */
+    orphaned_answers: z.array(OrphanedAnswerSchema).optional(),
 })
 
 export const ComponentRefSchema = z.looseObject({

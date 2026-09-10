@@ -496,6 +496,173 @@ describe('readiness and gaps', () => {
     })
 })
 
+describe('what a release would carry, and the answers it stranded', () => {
+    // Two fields the API takes deliberate care to send and this package silently dropped. Both are
+    // on screen in the app already, so the person and the agent were being told different things
+    // about the same version.
+
+    it('says what a release will carry, in the words the app uses', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: false,
+                    verdict: 'outstanding',
+                    unknown_gate_count: 0,
+                    unrun_checks: [],
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 1, state: 'attention', category: 'gate', gating: true },
+                    ],
+                    release: RELEASE_FACTS,
+                    release_warnings: [
+                        '2 components have no technology chosen.',
+                        'The critique has not been run against this version.',
+                    ],
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
+
+        // "It will carry:" is the app's own heading, beside its Release button. A person and an
+        // agent looking at the same version should hear the same sentence.
+        expect(text(result)).toMatch(/It will carry:/)
+        expect(text(result)).toMatch(/- 2 components have no technology chosen\./)
+        expect(text(result)).toMatch(/- The critique has not been run against this version\./)
+        const data = result.structuredContent?.data as { release_warnings: string[] }
+        expect(data.release_warnings).toHaveLength(2)
+    })
+
+    it('keeps the warnings a warning, not a gate', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    verdict: 'ready',
+                    unknown_gate_count: 0,
+                    unrun_checks: [],
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 0, state: 'clear', category: 'gate', gating: false },
+                    ],
+                    release: RELEASE_FACTS,
+                    release_warnings: ['The critique has not been run against this version.'],
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
+
+        // A design can be ready and still carry something. Rendering these as blockers would make
+        // the agent refuse work the product is happy to hand over.
+        expect(text(result)).toMatch(/Every gate is clear/)
+        expect(text(result)).toMatch(/It will carry:/)
+    })
+
+    it('says nothing about warnings when the version carries none', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    verdict: 'ready',
+                    unknown_gate_count: 0,
+                    unrun_checks: [],
+                    rows: [],
+                    release: RELEASE_FACTS,
+                    release_warnings: [],
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
+
+        expect(text(result)).not.toMatch(/It will carry:/)
+    })
+
+    it('still parses a readiness response from a server that predates the field', async () => {
+        // Required on today's wire, optional here on purpose: a published package outlives the
+        // server it was built against, and a missing field must thin the answer, never break it.
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    rows: [],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
+
+        expect(result.isError).toBeFalsy()
+        expect(text(result)).toMatch(/Every gate is clear/)
+        expect(text(result)).not.toMatch(/It will carry:/)
+    })
+
+    it('reports the answers a regeneration stranded', async () => {
+        await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
+                body: {
+                    project_id: PROJECT_ID,
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    gaps: [{ gap_id: 'a1', kind: 'open_question', text: 'Which region?', resolved: false }],
+                    unresolved_count: 1,
+                    orphaned_answers: [
+                        { gap_id: 'dead1111beef2222', kind: 'open_question', action: 'answered', note: 'eu-west-1.' },
+                        { gap_id: 'feed3333face4444', kind: 'assumption', action: 'confirmed', adr_id: 'adr-9' },
+                    ],
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'gaps' })
+
+        // A gap's id is a hash of its own wording, so re-generating a design strands the answers
+        // that settled its questions. The server records them precisely so they are not dropped in
+        // silence — and then this package dropped them in silence.
+        expect(text(result)).toMatch(/2 earlier answer\(s\) do not match any question in this version/)
+        expect(text(result)).toMatch(/Any Decision they minted still stands/)
+        // Where an answer minted a Decision there is somewhere to look, so it is named. Where it
+        // did not, there is no wording stored to show and a row would be an empty promise.
+        expect(text(result)).toMatch(/\[assumption\] confirmed → Decision adr-9/)
+        expect(text(result)).not.toMatch(/dead1111beef2222/)
+        const data = result.structuredContent?.data as { orphaned_answers: unknown[] }
+        expect(data.orphaned_answers).toHaveLength(2)
+    })
+
+    it('says nothing about stranded answers when there are none', async () => {
+        await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
+                body: {
+                    project_id: PROJECT_ID,
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    gaps: [],
+                    unresolved_count: 0,
+                    orphaned_answers: [],
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'gaps' })
+
+        expect(text(result)).not.toMatch(/earlier answer/)
+    })
+})
+
 describe('a design whose gaps carry a recommendation', () => {
     it('parses rather than erroring, because the server is allowed to add things', async () => {
         const api = fakeApi([
