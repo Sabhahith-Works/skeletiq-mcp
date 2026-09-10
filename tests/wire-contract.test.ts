@@ -179,12 +179,6 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
  * quietly outlived.
  */
 const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
-    ArchitectureJsonSchema: {
-        grounded_decisions:
-            "The design's own reasoning, with the requirements each decision serves. Most designs " +
-            'carry these and no plain `design_decisions` at all, so an agent asking for the design ' +
-            'is told it was built for no stated reason. Fixed next in this release.',
-    },
     ReadinessSchema: {
         release_warnings:
             'What releasing this version would be carrying, one sentence each. A person clicking ' +

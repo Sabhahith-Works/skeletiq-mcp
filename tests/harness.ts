@@ -188,6 +188,77 @@ export const DESIGN = {
     trade_offs: ['Redis adds an eviction problem.'],
 }
 
+/**
+ * The shape most stored designs actually have: reasoning in `grounded_decisions`, and an **empty**
+ * `design_decisions`. `DESIGN` above is deliberately left as the legacy anchor — it is what a design
+ * generated before grounding existed, or by an OSS build, or by a fallback engine still looks like,
+ * and a client that stops reading it breaks those. This is the other half of the same wire.
+ */
+export const GROUNDED_DESIGN = {
+    ...DESIGN,
+    design_decisions: [],
+    grounded_decisions: [
+        {
+            text: 'Postgres was chosen for the Links Database because the data is relational.',
+            source_ids: ['corpus:datastores/relational'],
+            requirement_ids: ['R1'],
+            assumption: false,
+            confidence: 'high',
+        },
+        {
+            text: 'Redis fronts reads because the hot set is small and the read:write ratio is high.',
+            source_ids: [],
+            requirement_ids: ['R2'],
+            assumption: true,
+            confidence: 'medium',
+        },
+    ],
+}
+
+/**
+ * Both lists populated, saying different things — the case where preferring either one loses real
+ * content. The duplicate is deliberate: the same sentence in both lists must reach the agent once.
+ */
+export const MIXED_DESIGN = {
+    ...DESIGN,
+    design_decisions: [
+        'Postgres was chosen for the Links Database because the data is relational.',
+        'Short codes are generated in the API Service, not the database.',
+    ],
+    grounded_decisions: [
+        // Same text as the legacy list's first entry.
+        { text: 'Postgres was chosen for the Links Database because the data is relational.', requirement_ids: ['R1'] },
+        { text: 'Redis fronts reads because the hot set is small.', requirement_ids: ['R2'] },
+    ],
+}
+
+/**
+ * Serve a different `architecture_json` from every route a design can be reached through.
+ *
+ * Pass as `baseRoutes`' `extra`: an override declares the same `match` string as the route it
+ * replaces, and equal-length matches keep declaration order, so the override answers first.
+ */
+export function designRoutes(design: unknown): Route[] {
+    return [
+        {
+            match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
+            body: {
+                items: [
+                    { id: ARCH_V2, project_id: PROJECT_ID, version: 2, architecture_json: design, is_released: true },
+                    { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false },
+                ],
+                total: 2,
+                limit: 100,
+                offset: 0,
+            },
+        },
+        {
+            match: 'GET /api/v1/architectures/',
+            body: { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false },
+        },
+    ]
+}
+
 export const RELEASE_FACTS = {
     is_released: true,
     released_at: '2026-08-20T00:00:00Z',

@@ -947,6 +947,45 @@
         }
       }
     },
+    "GroundedDecisionSchema": {
+      "python_model": "app.schemas.architecture.GroundedDecision",
+      "authority": "nested_in_untyped_dict",
+      "endpoints": [
+        "nested in architecture_json.grounded_decisions"
+      ],
+      "fields": {
+        "assumption": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "confidence": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "requirement_ids": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "source_ids": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "text": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
     "IntentDecisionSchema": {
       "python_model": "app.schemas.chat.IntentDecisionResponse",
       "authority": "response_model",

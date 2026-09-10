@@ -97,6 +97,19 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             ...data.components.map(
                                 (c) => `- ${c.id} — ${c.name} (${c.type}${c.technology ? `, ${c.technology}` : ''})`,
                             ),
+                            // The design's own reasoning, which this text used to omit entirely
+                            // while carrying it in the structured half — so an agent working from
+                            // what it was shown rebuilt every choice from scratch, and could
+                            // silently undo one. Said here because it is the answer to "why is it
+                            // like this", and the overview is where that gets asked.
+                            ...(data.design_decisions.length
+                                ? ['', 'Decisions taken — these are settled, build to them:',
+                                   ...data.design_decisions.map((decision) => `- ${decision}`)]
+                                : []),
+                            ...(data.trade_offs.length
+                                ? ['', 'Trade-offs the design accepts:',
+                                   ...data.trade_offs.map((tradeOff) => `- ${tradeOff}`)]
+                                : []),
                             '',
                             versionLine(facts),
                         ].join('\n'))
@@ -128,7 +141,16 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             incoming.length
                                 ? `Called by: ${incoming.map((c) => c.source).join(', ')}`
                                 : 'Called by nothing in the design.',
-                            ...slice.related_decisions.map((decision) => `- ${decision}`),
+                            // Labelled, and only when there are any. These bullets used to be
+                            // printed bare under "Called by:", so a decision about the component
+                            // read as a continuation of its edge list — and a design with no
+                            // matching decision printed nothing at all, which reads as a design
+                            // with no reasoning rather than as a decision that names other boxes.
+                            ...(slice.related_decisions.length
+                                ? ['', 'Decisions that mention it:',
+                                   ...slice.related_decisions.map((decision) => `- ${decision}`)]
+                                : ['', 'No decision in this design names this component. That is not the same as',
+                                   'no reason — use mode "overview" for the design\'s decisions in full.']),
                             '',
                             versionLine(facts),
                         ].join('\n'))

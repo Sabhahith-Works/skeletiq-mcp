@@ -8,9 +8,12 @@ import {
     ARCH_V2,
     ARCH_V3,
     DESIGN,
+    GROUNDED_DESIGN,
+    MIXED_DESIGN,
     PROJECT_ID,
     RELEASE_FACTS,
     baseRoutes,
+    designRoutes,
     fakeApi,
     startHarness,
     type FakeApi,
@@ -160,6 +163,125 @@ describe('the component slice', () => {
 
         expect(result.isError).toBe(true)
         expect(text(result)).toMatch(/needs a component_id/)
+    })
+})
+
+describe('the decisions a design states', () => {
+    // The server keeps two lists. `design_decisions` is the original, plain strings; the design
+    // itself is now usually written with `grounded_decisions`, the same statements carrying the
+    // requirements behind them — and the legacy list left empty. The connector read only the first,
+    // so the most common design in the product answered "no reasoning here" to the agent about to
+    // implement it. The wire schema is lenient, so the data arrived and was discarded in silence.
+
+    it('reads decisions a design keeps only in its grounded list', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        const data = result.structuredContent?.data as { design_decisions: string[] }
+        expect(data.design_decisions).toHaveLength(2)
+        expect(data.design_decisions[0]).toMatch(/Postgres/)
+        expect(data.design_decisions[1]).toMatch(/Redis fronts reads/)
+    })
+
+    it('shows them in the overview an agent actually reads', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        // The structured half was never the problem on its own — the text is what a model is shown,
+        // and it named the components and then stopped, so every choice looked open again.
+        expect(text(result)).toMatch(/Decisions taken/)
+        expect(text(result)).toMatch(/Postgres was chosen/)
+        expect(text(result)).toMatch(/Redis fronts reads/)
+    })
+
+    it('carries them into the component slice', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'db',
+        })
+
+        const slice = result.structuredContent?.data as { related_decisions: string[] }
+        expect(slice.related_decisions).toHaveLength(1)
+        expect(slice.related_decisions[0]).toMatch(/Postgres/)
+        expect(text(result)).toMatch(/Decisions that mention it:/)
+        expect(text(result)).toMatch(/- Postgres was chosen/)
+    })
+
+    it('keeps both lists when a design carries both, because they do not say the same thing', async () => {
+        await open(designRoutes(MIXED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        // Preferring either list drops real content: on designs carrying both, their text sets were
+        // measured and never coincide. Three distinct statements across the two lists, all three
+        // kept, legacy first and each list in the order the design states it.
+        const data = result.structuredContent?.data as { design_decisions: string[] }
+        expect(data.design_decisions).toEqual([
+            'Postgres was chosen for the Links Database because the data is relational.',
+            'Short codes are generated in the API Service, not the database.',
+            'Redis fronts reads because the hot set is small.',
+        ])
+    })
+
+    it('states a decision once when both lists carry the same sentence', async () => {
+        await open(designRoutes(MIXED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        const data = result.structuredContent?.data as { design_decisions: string[] }
+        // Three statements across the two lists, not four: the shared sentence is one decision the
+        // server happens to keep twice, and repeating it would read as emphasis the design never put
+        // there. The length is asserted alongside the count so this fails on a tree that reads one
+        // list, where the duplicate is trivially absent.
+        expect(data.design_decisions).toHaveLength(3)
+        const postgres = data.design_decisions.filter((decision) => decision.includes('Postgres was chosen'))
+        expect(postgres).toHaveLength(1)
+    })
+
+    it('says so plainly when no decision names the component', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'api',
+        })
+
+        // Silence here reads as "this component has no reasoning behind it". It does not: the
+        // decisions name other boxes. The difference is worth a sentence, and the sentence has to
+        // point somewhere useful.
+        expect(text(result)).toMatch(/No decision in this design names this component/)
+        expect(text(result)).toMatch(/mode "overview"/)
+    })
+
+    it('still reads a design that predates grounded decisions entirely', async () => {
+        // `DESIGN` is the legacy anchor: strings only, no `grounded_decisions` key at all. An older
+        // server, an OSS build and the fallback engine all still send exactly this.
+        await open()
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        const data = result.structuredContent?.data as { design_decisions: string[] }
+        expect(data.design_decisions).toEqual([DESIGN.design_decisions[0]])
+        expect(text(result)).toMatch(/Decisions taken/)
+    })
+
+    it('says nothing about decisions when the design states none', async () => {
+        await open(designRoutes({ ...DESIGN, design_decisions: [], trade_offs: [] }))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        // An empty heading is worse than no heading: it asserts the design was examined and found
+        // to have no reasoning, which is not what an absent list means. Alone among the tests in
+        // this block, this one also passes against the tree before the fix — there was no heading
+        // there to be empty. It guards the new rendering, not the old defect.
+        expect(text(result)).not.toMatch(/Decisions taken/)
+        expect(text(result)).not.toMatch(/Trade-offs/)
     })
 })
 

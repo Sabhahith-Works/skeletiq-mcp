@@ -94,12 +94,36 @@ const GapEntrySchema = z.union([
     }),
 ])
 
+/**
+ * A design decision that carries its own provenance.
+ *
+ * The newer of the two shapes a decision arrives in, and by now the usual one: most stored designs
+ * hold these and an **empty** `design_decisions`, so a client reading only the legacy list is told
+ * the design was built for no stated reason. Both are kept because both are real — an older design,
+ * an OSS build, or a fallback generation still writes plain strings, and the two lists carry
+ * different text when they are both populated.
+ *
+ * `assumption` and `confidence` are received and not yet surfaced: promoting a decision from a
+ * string to an object is a breaking change to what this package promises its callers, and this is a
+ * patch. They are named here so the shape is on record and the change is a decision rather than a
+ * discovery.
+ */
+export const GroundedDecisionSchema = z.looseObject({
+    text: z.string(),
+    source_ids: z.array(z.string()).nullable().optional(),
+    requirement_ids: z.array(z.string()).nullable().optional(),
+    assumption: z.boolean().optional(),
+    confidence: z.string().optional(),
+})
+export type GroundedDecision = z.infer<typeof GroundedDecisionSchema>
+
 export const ArchitectureJsonSchema = z.looseObject({
     title: z.string().optional(),
     description: z.string().optional(),
     components: z.array(ComponentSchema).optional(),
     connections: z.array(ConnectionSchema).optional(),
     design_decisions: z.array(z.string()).nullable().optional(),
+    grounded_decisions: z.array(GroundedDecisionSchema).nullable().optional(),
     trade_offs: z.array(z.string()).nullable().optional(),
     scalability_notes: z.string().nullable().optional(),
     assumptions: z.array(GapEntrySchema).nullable().optional(),
