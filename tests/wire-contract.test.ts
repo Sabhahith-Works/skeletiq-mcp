@@ -4,9 +4,12 @@
  * `src/wire/schemas.ts` mirrors the SkeletIQ API's response models by hand, and every object in it
  * is **lenient on purpose** — a published package has to keep working against a server it was not
  * built alongside. The cost of that leniency is invisible: a field the connector does not name
- * arrives, parses cleanly, and is thrown away. No error, no warning, no failing test. Three fields
- * were being discarded that way while the rest of this suite was green, one of them the list a
- * person sees on screen headed "It will carry:".
+ * arrives, parses cleanly, and then depends on luck. Where a handler rebuilds its answer from named
+ * keys the field is **dropped outright**; where it passes the parsed object straight through the
+ * field survives into `structuredContent` but goes **unread** — nothing names it, so nothing renders
+ * it and no declared output promises it. Neither shows up as an error, a warning, or a failing test.
+ * Three fields were being lost that way, in both forms, while the rest of this suite was green — one
+ * of them the list a person sees on screen headed "It will carry:".
  *
  * So the API writes down what it sends — `tests/contract/api-wire-contract.json`, generated from
  * the live pydantic models — and this file asks one question of it: **does the connector name

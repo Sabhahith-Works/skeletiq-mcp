@@ -14,9 +14,13 @@ Nothing yet.
 ## [0.1.1] — 2026-09-10
 
 Everything the SkeletIQ API sends about a design now reaches the agent reading it. `0.1.0` mirrored
-the API's response shapes by hand and left three fields unnamed, and because those shapes accept
-unknown keys on purpose — so a published client keeps working against a newer server — the missing
-fields arrived, parsed, and were discarded without an error anywhere.
+the API's response shapes by hand and left three fields unnamed. Because those shapes accept unknown
+keys on purpose — so a published client keeps working against a newer server — nothing failed, and
+the loss took two different forms. `grounded_decisions` was **dropped**: the design slice is rebuilt
+from named keys, so it never reached the caller in any form. `release_warnings` and
+`orphaned_answers` were **unread**: those two modes hand back the whole parsed response, so the
+fields sat in `structuredContent` while the answer's prose — the part every host shows the model, and
+the only part a tool's declared output promises — said nothing about them.
 
 ### Fixed
 
