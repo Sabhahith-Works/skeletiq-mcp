@@ -3,7 +3,7 @@
   "name": "com.skeletiq/mcp",
   "title": "SkeletIQ",
   "description": "Hand a released SkeletIQ architecture to a coding agent: brief, build order, drift check.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "websiteUrl": "https://skeletiq.com",
   "repository": {
     "url": "https://github.com/Sabhahith-Works/skeletiq-mcp",
@@ -14,7 +14,7 @@
     {
       "registryType": "npm",
       "identifier": "@skeletiq/mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": {
         "type": "stdio"
       },
