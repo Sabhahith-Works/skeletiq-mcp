@@ -63,10 +63,19 @@ A token grants only what you tick. The server's tools need:
 | Scope | What it unlocks | Tools |
 |---|---|---|
 | `read` | Projects, designs, briefs, build order, readiness, gaps, jobs | `list_projects`, `get_design`, `get_generation_status` |
-| `generate` | Running generations and payload critique. **Spends credits.** | `generate_architecture`, `critique_architecture` |
-| `report` | Recording what got built | `check_drift` |
+| `generate` | Running generations — **that spends credits** — and payload critique, which is free | `generate_architecture`, `critique_architecture` |
+| `report` | Recording what got built. **Needs `read` as well** | `check_drift` |
 
 `read` alone is a good starting point: the agent can orient and build, but cannot spend anything.
+
+Two things the table above cannot say in a cell:
+
+- **`report` on its own does nothing.** `check_drift` looks the project and the version up before it
+  can report against them, and those lookups are `read`. A `report`-only token is refused.
+- **`generate` without `read` still generates**, but the answer is thinner: the tool reads back the
+  design it just created to describe it, and reports that failure as a thinner answer rather than a
+  failed generation — telling an agent the generation failed would invite it to pay for the whole
+  thing again.
 
 Everything else is out of reach by construction — a token cannot mint another token, read or
 change your provider keys, see billing, or delete your account, whatever scopes it carries.
