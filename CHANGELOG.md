@@ -38,6 +38,14 @@ new version.
   requirements rather than "0 requirements", and a server that does not send the field at all is
   read exactly as it was before.
 
+- **The ledger is named on the wire, not merely rendered.** `ArchitectureSchema` gained an optional,
+  nullable `requirement_ledger`, described by three new schemas in `src/wire/schemas.ts`:
+  `RequirementLedgerSchema`, `RequirementLedgerRowSchema` and `RequirementLedgerCountsSchema`. Naming
+  a field is what makes it survive — the design payload is rebuilt from named keys, so a field this
+  package does not name is dropped without a trace, which is how `grounded_decisions` went missing
+  in `0.1.0`. A row's `status` is read as a string rather than as the four words this version
+  knows, so a status added server-side arrives intact instead of being refused at the door.
+
 ## [0.1.2] — 2026-09-16
 
 ### Changed

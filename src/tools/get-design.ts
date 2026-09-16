@@ -34,8 +34,9 @@ const input = z.object({
     mode: z
         .enum(MODES)
         .describe(
-            'overview: the whole design. ' +
-                'component: one component, its connections in both directions, and the decisions that mention it. ' +
+            'overview: the whole design, and the requirements it was built from with what became of each. ' +
+                'component: one component, its connections in both directions, the decisions that mention it, ' +
+                'and the requirements the design cites it for. ' +
                 'brief: the fenced markdown block to write into AGENTS.md. ' +
                 'readiness: what still has to be decided before this design is worth building. ' +
                 'build_order: the order to build components in, and why. ' +
@@ -70,8 +71,9 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
             description:
                 'Read a SkeletIQ architecture. Start with mode "brief" to orient — it returns a fenced ' +
                 'block to write into AGENTS.md — then "build_order" for the sequence and "component" for ' +
-                'each piece as you build it. Every answer states which version it came from and whether ' +
-                'that version is a release.',
+                'each piece as you build it. "overview" and "component" also resolve the R-ids the design ' +
+                'carries to the requirements they name, and say what became of each. Every answer states ' +
+                'which version it came from and whether that version is a release.',
             inputSchema: input,
             outputSchema: output,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: true },
@@ -404,10 +406,16 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
  * package happens to know. A row with no text at all says so — the whole point of the block is
  * that an agent should not be left holding a bare `R7`, and printing one silently would look
  * exactly like the behaviour this replaced.
+ *
+ * The text is a requirement as a person or a model wrote it, and this list is newline-delimited, so
+ * a line break inside one requirement would open a second row under the same heading — a row with
+ * an id and a status that no server ever sent, indistinguishable from the real ones. Internal
+ * whitespace is collapsed to keep one requirement on one line. Nothing is capped or truncated:
+ * every requirement the version records is a requirement the agent has to build to.
  */
 function requirementLine(row: RequirementLedgerRow): string {
     const status = row.status ? ` [${row.status}]` : ''
-    const text = (row.text ?? '').trim()
+    const text = (row.text ?? '').replace(/\s+/g, ' ').trim()
     return `- ${row.id}${status} ${text || '(no text recorded for this requirement)'}`
 }
 

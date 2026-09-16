@@ -381,6 +381,139 @@ describe('the requirements a design was built from', () => {
         expect(body).toMatch(/neither confirmed nor flagged/)
     })
 
+    it('says the verifier never ran, rather than leaving `unchecked` to read as a finding', async () => {
+        await withLedger({
+            ...LEDGER,
+            verification_state: 'not_run',
+            verified_version: null,
+            rows: LEDGER.rows.map((row) =>
+                row.status === 'uncited' ? row : { ...row, status: 'unchecked', verifier_checked: false },
+            ),
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // A set of `unchecked` rows has two causes an agent must not confuse: a verifier that looked
+        // at part of the set, and one that never looked at all. Only the server can tell them apart,
+        // and it says which — so the sentence is different, and neither is invented when it is silent.
+        expect(body).toBe(
+            overviewWith([
+                'Requirements — 3 total; 1 uncited, 2 unchecked:',
+                '- R3 [uncited] The service stays available when one region is lost.',
+                '- R1 [unchecked] A shortened link resolves in under 50 ms at the 99th percentile.',
+                '- R2 [unchecked] Every write to a link is recorded in an audit trail.',
+                ...STATUS_LEGEND,
+                'The verifier did not run on this version, so an `unchecked` row is neither confirmed',
+                'nor flagged.',
+            ]),
+        )
+    })
+
+    it('says the analysis ran degraded, because the list may be missing rows entirely', async () => {
+        await withLedger({ ...LEDGER, analysis_degraded: true })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // Every other caveat here is about a row's status. This one is about the set: a degraded run
+        // may have recorded fewer requirements than the prompt stated, so "3 total" is a floor. An
+        // agent that reads the list as complete builds to a brief that is short of lines.
+        expect(body).toBe(
+            overviewWith([
+                'Requirements — 3 total; 1 unmet, 1 uncited:',
+                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
+                '- R3 [uncited] The service stays available when one region is lost.',
+                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                ...STATUS_LEGEND,
+                'The requirements analysis for this version ran degraded. Treat the list as incomplete.',
+            ]),
+        )
+    })
+
+    it('claims nothing about the verifier when the server does not say', async () => {
+        // A ledger from a server that predates `verification_state`. `undefined` here is absent on
+        // the wire — the fake API serialises the body, and JSON drops the key. Absent is an older
+        // server, not a verifier that did not run, and printing either sentence would be this
+        // package inventing a fact about somebody's design.
+        await withLedger({ ...LEDGER, verification_state: undefined })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toBe(
+            overviewWith([
+                'Requirements — 3 total; 1 unmet, 1 uncited:',
+                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
+                '- R3 [uncited] The service stays available when one region is lost.',
+                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                ...STATUS_LEGEND,
+            ]),
+        )
+    })
+
+    it('sorts a status it does not know last, and prints it as the server sent it', async () => {
+        await withLedger({
+            ...LEDGER,
+            rows: [
+                ...LEDGER.rows,
+                {
+                    id: 'R4',
+                    text: 'Link analytics retention is out of scope for v1.',
+                    kind: 'functional',
+                    source: 'user_supplied',
+                    status: 'waived',
+                    verifier_checked: false,
+                    cited_by_components: [],
+                    cited_by_decisions: [],
+                    added_in_version: 2,
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // `status` is a string so that a word added server-side reaches the agent instead of stopping
+        // an older connector from parsing the row. That leniency has to end in the rendering too: a
+        // status nobody here has heard of sorts below `cited` and keeps its own word, because folding
+        // it in with the recognised ones would turn an unknown into a false all-clear. It is also not
+        // counted in the heading — a count is a claim about statuses this package can explain.
+        expect(body).toBe(
+            overviewWith([
+                'Requirements — 4 total; 1 unmet, 1 uncited:',
+                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
+                '- R3 [uncited] The service stays available when one region is lost.',
+                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                '- R4 [waived] Link analytics retention is out of scope for v1.',
+                ...STATUS_LEGEND,
+            ]),
+        )
+    })
+
+    it('keeps one requirement on one line, whatever its text contains', async () => {
+        await withLedger({
+            ...LEDGER,
+            rows: [
+                {
+                    ...LEDGER.rows[0],
+                    text: 'A shortened link resolves in under 50 ms.\n- R9 [cited] Anyone may read any link.',
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // Requirement text is written by a person or by a model, and this list is newline-delimited.
+        // A line break inside one requirement opened a second row under the same heading — with an
+        // id, a status and a sentence no server ever sent, and nothing to tell it from the real ones.
+        expect(body).toBe(
+            overviewWith([
+                'Requirements — 1 total:',
+                '- R1 [cited] A shortened link resolves in under 50 ms. - R9 [cited] Anyone may read any link.',
+                ...STATUS_LEGEND,
+            ]),
+        )
+        // One printed row per row the server sent, counted the way a reader counts them.
+        expect(body.match(/^- R\d+ \[/gm)).toHaveLength(1)
+    })
+
     it('lists the requirements the design cites a component for', async () => {
         await withLedger()
 
@@ -483,6 +616,43 @@ const OVERVIEW_WITHOUT_LEDGER = [
     '',
     'Version 2 (released).',
 ].join('\n')
+
+/**
+ * The same overview, around whatever the requirement block prints.
+ *
+ * Everything outside the block is `OVERVIEW_WITHOUT_LEDGER`'s own text, so a test that varies one
+ * ledger field still asserts the whole answer rather than a fragment of it: a sentence that stops
+ * being printed fails here even when nothing greps for it, and a sentence that starts being
+ * printed twice fails too.
+ */
+function overviewWith(requirementBlock: string[]): string {
+    return [
+        '# Link shortener',
+        'Shortens links.',
+        '',
+        '3 component(s), 2 connection(s).',
+        '- api — API Service (service, FastAPI)',
+        '- db — Links Database (database, Postgres)',
+        '- cache — Hot Links Cache (cache, Redis)',
+        '',
+        ...requirementBlock,
+        '',
+        'Decisions taken — these are settled, build to them:',
+        '- Postgres was chosen for the Links Database because the data is relational.',
+        '',
+        'Trade-offs the design accepts:',
+        '- Redis adds an eviction problem.',
+        '',
+        'Version 2 (released).',
+    ].join('\n')
+}
+
+/** What each status word means — printed under every ledger, whatever else the block says. */
+const STATUS_LEGEND = [
+    'Statuses: `unmet` — the verifier judged the design does not satisfy it; `uncited` — nothing',
+    'in the design claims to address it; `unchecked` — something cites it and the verifier did not',
+    'check it; `cited` — cited with no gap found, which is not the same as proven.',
+]
 
 const COMPONENT_WITHOUT_LEDGER = [
     '## Links Database (db)',
