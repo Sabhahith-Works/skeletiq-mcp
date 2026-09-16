@@ -131,6 +131,64 @@ export const ArchitectureJsonSchema = z.looseObject({
 })
 export type ArchitectureJson = z.infer<typeof ArchitectureJsonSchema>
 
+/**
+ * One requirement the design was asked to satisfy, and what in the saved payload addresses it.
+ *
+ * `R1…Rn` appear inside the design itself — on components and on grounded decisions — and until
+ * this arrived they were unresolvable: an agent reading `requirement_ids: ["R12"]` had the id and
+ * nowhere to look up what R12 said. These rows are that lookup, computed by the API from the
+ * stored analysis rather than re-derived from the payload, so the connector and the product
+ * cannot disagree about which requirement is covered.
+ */
+export const RequirementLedgerRowSchema = z.looseObject({
+    id: z.string(),
+    text: z.string().optional(),
+    kind: z.string().optional(),
+    source: z.string().optional(),
+    /** `unmet` | `uncited` | `unchecked` | `cited` — deliberately never `met`. Left as a string: a
+     * value added server-side must not stop an older connector parsing the row. */
+    status: z.string().optional(),
+    verifier_checked: z.boolean().optional(),
+    cited_by_components: z.array(z.string()).nullable().optional(),
+    /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
+    cited_by_decisions: z.array(z.number()).nullable().optional(),
+    added_in_version: z.number().nullable().optional(),
+})
+export type RequirementLedgerRow = z.infer<typeof RequirementLedgerRowSchema>
+
+export const RequirementLedgerCountsSchema = z.looseObject({
+    total: z.number().optional(),
+    user_supplied: z.number().optional(),
+    llm_inferred: z.number().optional(),
+    unmet: z.number().optional(),
+    uncited: z.number().optional(),
+    unchecked: z.number().optional(),
+    cited: z.number().optional(),
+})
+export type RequirementLedgerCounts = z.infer<typeof RequirementLedgerCountsSchema>
+
+/**
+ * What a stored version was asked to do, line by line.
+ *
+ * Absent means the row *cannot say* — no requirements analysis was recorded for it — which is not
+ * the same as a design with no requirements, and a tool that renders this must keep the two apart.
+ * `grounding_state` and `verification_state` say how far the coverage claims can be trusted:
+ * `not_grounded` is a design carrying no citations at all, and `partial` a verifier that spoke
+ * about some of the set and not the rest.
+ */
+export const RequirementLedgerSchema = z.looseObject({
+    rows: z.array(RequirementLedgerRowSchema).nullable().optional(),
+    analysis_version: z.number().nullable().optional(),
+    analysis_degraded: z.boolean().optional(),
+    /** `grounded` | `not_grounded` | `diverged`. */
+    grounding_state: z.string().optional(),
+    /** `ran` | `partial` | `not_run`. */
+    verification_state: z.string().optional(),
+    verified_version: z.number().nullable().optional(),
+    counts: RequirementLedgerCountsSchema.nullable().optional(),
+})
+export type RequirementLedger = z.infer<typeof RequirementLedgerSchema>
+
 export const ArchitectureSchema = z.looseObject({
     id: z.string(),
     project_id: z.string(),
@@ -142,6 +200,7 @@ export const ArchitectureSchema = z.looseObject({
     updated_at: z.string().optional(),
     is_released: z.boolean().optional(),
     released_at: z.string().nullable().optional(),
+    requirement_ledger: RequirementLedgerSchema.nullable().optional(),
 })
 export type Architecture = z.infer<typeof ArchitectureSchema>
 

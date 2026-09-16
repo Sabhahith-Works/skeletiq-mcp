@@ -188,6 +188,12 @@
           "nullable": true,
           "item": null
         },
+        "requirement_ledger": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "RequirementLedger"
+        },
         "status": {
           "required": true,
           "kind": "scalar",
@@ -1345,6 +1351,171 @@
           "item": null
         },
         "released_at": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        }
+      }
+    },
+    "RequirementLedgerCountsSchema": {
+      "python_model": "app.schemas.architecture.RequirementLedgerCounts",
+      "authority": "nested",
+      "endpoints": [
+        "nested in architecture.requirement_ledger.counts"
+      ],
+      "fields": {
+        "cited": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "llm_inferred": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "total": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "unchecked": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "uncited": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "unmet": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "user_supplied": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "RequirementLedgerRowSchema": {
+      "python_model": "app.schemas.architecture.RequirementLedgerRow",
+      "authority": "nested",
+      "endpoints": [
+        "nested in architecture.requirement_ledger.rows"
+      ],
+      "fields": {
+        "added_in_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "cited_by_components": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "cited_by_decisions": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "kind": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "source": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "status": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "text": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "verifier_checked": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "RequirementLedgerSchema": {
+      "python_model": "app.schemas.architecture.RequirementLedger",
+      "authority": "nested",
+      "endpoints": [
+        "nested in architecture.requirement_ledger"
+      ],
+      "fields": {
+        "analysis_degraded": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "analysis_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "counts": {
+          "required": false,
+          "kind": "object",
+          "nullable": false,
+          "item": "RequirementLedgerCounts"
+        },
+        "grounding_state": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "rows": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "RequirementLedgerRow"
+        },
+        "verification_state": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "verified_version": {
           "required": false,
           "kind": "scalar",
           "nullable": true,
