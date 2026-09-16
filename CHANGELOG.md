@@ -9,7 +9,34 @@ new version.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **`get_design` reports the requirements a design was built from, and what became of each one.** A
+  design records what it was asked to satisfy as `R1…Rn`, and those ids appear inside the design
+  itself — on components, and on the decisions that carry the requirements behind them. There was
+  nowhere to resolve them: an agent reading `requirement_ids: ["R12"]` held an id and no text, so
+  the one thing a design says about what it is *for* was the one thing it could not read. `overview`
+  now lists every requirement in its own wording, and `component` lists the ones the design cites
+  that component for.
+
+  Each row carries a status, and none of them is "met". `unmet` means the verifier judged the design
+  does not satisfy the requirement; `uncited` that nothing in the design claims to address it;
+  `unchecked` that something cites it and the verifier did not check it; `cited` that it is cited
+  and no gap was found — which is not the same as proven. That last one is the strongest claim the
+  product can make, and an agent told a requirement is met stops looking at it. `unmet` and
+  `uncited` are listed first for the same reason: they are the two that ask for work. Where a design
+  records no citations at all, or the verifier checked only part of the set, the answer says so,
+  rather than letting a status be read as a finding it is not.
+
+  Which components a requirement is cited by is the server's answer, computed from the saved design.
+  A component's own `requirement_ids` are deliberately not re-read here: a second derivation of the
+  same relationship is free to disagree with the first, and then two readers of one version report
+  different coverage.
+
+  The field is optional and nullable. A version carrying no requirements analysis — a template, a
+  reverse-engineered design, anything from before the analysis existed — prints nothing about
+  requirements rather than "0 requirements", and a server that does not send the field at all is
+  read exactly as it was before.
 
 ## [0.1.2] — 2026-09-16
 

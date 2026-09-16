@@ -9,6 +9,7 @@ import {
     ARCH_V3,
     DESIGN,
     GROUNDED_DESIGN,
+    LEDGER,
     MIXED_DESIGN,
     PROJECT_ID,
     RELEASE_FACTS,
@@ -284,6 +285,218 @@ describe('the decisions a design states', () => {
         expect(text(result)).not.toMatch(/Trade-offs/)
     })
 })
+
+describe('the requirements a design was built from', () => {
+    // `R7` appears inside the design itself — on components, and on grounded decisions — and an
+    // agent reading `requirement_ids: ["R7"]` had the id and nowhere to look up what R7 said. The
+    // ledger is that lookup, and it is also the only place the design says what became of a line
+    // it was asked to satisfy.
+
+    async function withLedger(ledger: unknown = LEDGER): Promise<void> {
+        await open(designRoutes(DESIGN, { requirement_ledger: ledger }))
+    }
+
+    it('lists them in the overview, resolved to text, with what became of each', async () => {
+        await withLedger()
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        expect(text(result)).toContain(
+            [
+                'Requirements — 3 total; 1 unmet, 1 uncited:',
+                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
+                '- R3 [uncited] The service stays available when one region is lost.',
+                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+            ].join('\n'),
+        )
+    })
+
+    it('puts what needs doing first, and never calls a requirement met', async () => {
+        await withLedger()
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // `unmet` and `uncited` are the two statuses that ask the agent to do something, so they
+        // come first; R-number order survives inside each group. The rows arrive R1, R2, R3, so a
+        // renderer that does no grouping at all fails this and passes a looser assertion.
+        expect(body.indexOf('- R2 [unmet]')).toBeLessThan(body.indexOf('- R3 [uncited]'))
+        expect(body.indexOf('- R3 [uncited]')).toBeLessThan(body.indexOf('- R1 [cited]'))
+        // The strongest thing the product knows about a requirement is that something in the design
+        // cites it and no check flagged a gap. "Met" and "satisfied" claim the other thing, and an
+        // agent told a requirement is met stops looking at it.
+        expect(body).not.toMatch(/\bmet\b/)
+        expect(body).not.toMatch(/\bsatisfied\b/)
+    })
+
+    it('says what the statuses mean, once', async () => {
+        await withLedger()
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toMatch(/`cited` — cited with no gap found, which is not the same as proven/)
+        expect(body.match(/the verifier judged the design does not satisfy it/g)).toHaveLength(1)
+    })
+
+    it('carries the ledger into the structured half verbatim', async () => {
+        await withLedger()
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        // The overview payload is rebuilt from named keys, so anything not named is dropped — which
+        // is how `grounded_decisions` went missing for two releases. Verbatim, and in the server's
+        // own row order: a block this package says it passes through must not be re-sorted on the
+        // way past.
+        const data = result.structuredContent?.data as { requirement_ledger: typeof LEDGER }
+        expect(data.requirement_ledger).toEqual(LEDGER)
+    })
+
+    it('says a version with no citations recorded none, rather than leaving `uncited` to be read as absence', async () => {
+        await withLedger({
+            ...LEDGER,
+            grounding_state: 'not_grounded',
+            rows: LEDGER.rows.map((row) => ({ ...row, status: 'uncited', cited_by_components: [] })),
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // Every row `uncited` because the generation path recorded no citations at all is a
+        // different fact from a design that genuinely addresses none of its requirements, and an
+        // agent shown the second when the first is true rebuilds work that is already there.
+        expect(body).toMatch(/records no citations at all/)
+        expect(body).toMatch(/not that nothing in the design does/)
+    })
+
+    it('says when the verifier did not check every row', async () => {
+        await withLedger({
+            ...LEDGER,
+            verification_state: 'partial',
+            rows: LEDGER.rows.map((row) => (row.id === 'R1' ? { ...row, status: 'unchecked', verifier_checked: false } : row)),
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toMatch(/Requirements — 3 total; 1 unmet, 1 uncited, 1 unchecked:/)
+        expect(body).toMatch(/- R1 \[unchecked\] A shortened link resolves/)
+        expect(body).toMatch(/did not check every requirement in this set/)
+        expect(body).toMatch(/neither confirmed nor flagged/)
+    })
+
+    it('lists the requirements the design cites a component for', async () => {
+        await withLedger()
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'db',
+        })
+
+        expect(text(result)).toContain(
+            [
+                'Requirements the design cites this component for:',
+                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
+                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+            ].join('\n'),
+        )
+        // Cited-by is the server's, computed from the saved payload — components *and* grounded
+        // decisions. The component's own `requirement_ids` would be a second derivation of the same
+        // relationship, free to disagree with the first.
+        const slice = result.structuredContent?.data as { cited_requirements: { id: string }[] }
+        expect(slice.cited_requirements.map((row) => row.id)).toEqual(['R2', 'R1'])
+        // `R3` is cited by nothing, so it belongs to no component's slice.
+        expect(text(result)).not.toMatch(/R3/)
+    })
+
+    it('says nothing about requirements on a component the ledger cites for none', async () => {
+        await withLedger()
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'cache',
+        })
+
+        // A heading over an empty list would say the opposite of the empty list under it. Unlike a
+        // decision — where silence reads as "this component has no reasoning behind it" and is
+        // worth a sentence — a requirement naming other boxes says nothing about this one.
+        expect(text(result)).not.toMatch(/Requirements/)
+        const slice = result.structuredContent?.data as { cited_requirements: { id: string }[] }
+        expect(slice.cited_requirements).toEqual([])
+    })
+
+    it('prints nothing at all about requirements when the version carries no ledger', async () => {
+        // An older server, a template, a reverse-engineered design and a version from before the
+        // analysis ran all send no field. "0 requirements" would report every one of them as a
+        // design that was asked for nothing.
+        await open()
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+        const slice = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'db',
+        })
+
+        expect(text(result)).toBe(OVERVIEW_WITHOUT_LEDGER)
+        expect(text(slice)).toBe(COMPONENT_WITHOUT_LEDGER)
+        expect(result.structuredContent?.data).not.toHaveProperty('requirement_ledger')
+        expect(slice.structuredContent?.data).not.toHaveProperty('cited_requirements')
+    })
+
+    it('treats an explicit null the same way', async () => {
+        // The field is nullable, not merely optional: a version the API looked at and could not
+        // build a ledger for answers `null`, and it is the same silence as the field being absent.
+        await withLedger(null)
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+        const slice = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'db',
+        })
+
+        expect(text(result)).toBe(OVERVIEW_WITHOUT_LEDGER)
+        expect(text(slice)).toBe(COMPONENT_WITHOUT_LEDGER)
+    })
+})
+
+/**
+ * What the two modes printed before any of this existed, asserted rather than snapshotted.
+ *
+ * A snapshot updates itself when the output moves, which is the one thing these must not do: they
+ * exist so that a design carrying no ledger reads exactly as it did to a connector shipped before
+ * ledgers were a thing.
+ */
+const OVERVIEW_WITHOUT_LEDGER = [
+    '# Link shortener',
+    'Shortens links.',
+    '',
+    '3 component(s), 2 connection(s).',
+    '- api — API Service (service, FastAPI)',
+    '- db — Links Database (database, Postgres)',
+    '- cache — Hot Links Cache (cache, Redis)',
+    '',
+    'Decisions taken — these are settled, build to them:',
+    '- Postgres was chosen for the Links Database because the data is relational.',
+    '',
+    'Trade-offs the design accepts:',
+    '- Redis adds an eviction problem.',
+    '',
+    'Version 2 (released).',
+].join('\n')
+
+const COMPONENT_WITHOUT_LEDGER = [
+    '## Links Database (db)',
+    'Type: database · Postgres',
+    '',
+    '',
+    'Calls nothing.',
+    'Called by: api',
+    '',
+    'Decisions that mention it:',
+    '- Postgres was chosen for the Links Database because the data is relational.',
+    '',
+    'Version 2 (released).',
+].join('\n')
 
 describe('the brief', () => {
     it('tells the agent to replace the fence rather than append to it', async () => {

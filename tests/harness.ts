@@ -233,19 +233,76 @@ export const MIXED_DESIGN = {
 }
 
 /**
+ * What a version says it was asked to do, and what became of each line.
+ *
+ * One row per status a reader has to tell apart. `cited` is deliberately the *first* row: the
+ * server orders rows by R-number and the rendering groups by status, so a fixture already in the
+ * order it prints in would pass a renderer that does no grouping at all.
+ *
+ * `R1` is cited by two components, `R3` by none, and `cache` by no row at all — the cases the
+ * component slice has to tell apart.
+ */
+export const LEDGER = {
+    rows: [
+        {
+            id: 'R1',
+            text: 'A shortened link resolves in under 50 ms at the 99th percentile.',
+            kind: 'non_functional',
+            source: 'user_supplied',
+            status: 'cited',
+            verifier_checked: true,
+            cited_by_components: ['api', 'db'],
+            cited_by_decisions: [1],
+            added_in_version: 1,
+        },
+        {
+            id: 'R2',
+            text: 'Every write to a link is recorded in an audit trail.',
+            kind: 'functional',
+            source: 'llm_inferred',
+            status: 'unmet',
+            verifier_checked: true,
+            cited_by_components: ['db'],
+            cited_by_decisions: [],
+            added_in_version: 2,
+        },
+        {
+            id: 'R3',
+            text: 'The service stays available when one region is lost.',
+            kind: 'non_functional',
+            source: 'user_supplied',
+            status: 'uncited',
+            verifier_checked: false,
+            cited_by_components: [],
+            cited_by_decisions: [],
+            added_in_version: 1,
+        },
+    ],
+    analysis_version: 2,
+    analysis_degraded: false,
+    grounding_state: 'grounded',
+    verification_state: 'ran',
+    verified_version: 2,
+    counts: { total: 3, user_supplied: 2, llm_inferred: 1, unmet: 1, uncited: 1, unchecked: 0, cited: 1 },
+}
+
+/**
  * Serve a different `architecture_json` from every route a design can be reached through.
  *
  * Pass as `baseRoutes`' `extra`: an override declares the same `match` string as the route it
  * replaces, and equal-length matches keep declaration order, so the override answers first.
+ *
+ * `record` is merged into the architecture *row*, beside `architecture_json` rather than inside it
+ * — which is where every derived block the API computes lives, the requirement ledger included.
  */
-export function designRoutes(design: unknown): Route[] {
+export function designRoutes(design: unknown, record: Record<string, unknown> = {}): Route[] {
     return [
         {
             match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
             body: {
                 items: [
-                    { id: ARCH_V2, project_id: PROJECT_ID, version: 2, architecture_json: design, is_released: true },
-                    { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false },
+                    { id: ARCH_V2, project_id: PROJECT_ID, version: 2, architecture_json: design, is_released: true, ...record },
+                    { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false, ...record },
                 ],
                 total: 2,
                 limit: 100,
@@ -254,7 +311,7 @@ export function designRoutes(design: unknown): Route[] {
         },
         {
             match: 'GET /api/v1/architectures/',
-            body: { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false },
+            body: { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false, ...record },
         },
     ]
 }

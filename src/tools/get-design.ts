@@ -17,12 +17,14 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import type { SkeletiqClient } from '../http/client.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
-import { overview, sliceComponent } from '../lib/slice.js'
+import { orderRequirementRows, overview, sliceComponent } from '../lib/slice.js'
 import {
     BriefSchema,
     BuildOrderSchema,
     DesignGapListSchema,
     ReadinessSchema,
+    type RequirementLedger,
+    type RequirementLedgerRow,
 } from '../wire/schemas.js'
 
 const MODES = ['overview', 'component', 'brief', 'readiness', 'build_order', 'gaps'] as const
@@ -87,7 +89,7 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                 switch (mode) {
                     case 'overview': {
                         const design = await resolver.design(resolved.architectureId)
-                        const data = overview(design.architecture_json)
+                        const data = overview(design.architecture_json, design.requirement_ledger)
                         const facts = factsFrom(resolved)
                         return ok({ ...base, ...facts, data }, [
                             `# ${data.title}`,
@@ -97,6 +99,10 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             ...data.components.map(
                                 (c) => `- ${c.id} — ${c.name} (${c.type}${c.technology ? `, ${c.technology}` : ''})`,
                             ),
+                            // Above the decisions because the two answer different questions, in
+                            // this order: requirements are what was asked for, decisions are how
+                            // the design answered.
+                            ...requirementBlock(data.requirement_ledger),
                             // The design's own reasoning, which this text used to omit entirely
                             // while carrying it in the structured half — so an agent working from
                             // what it was shown rebuilt every choice from scratch, and could
@@ -120,7 +126,7 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             return failure('mode "component" needs a component_id. Use mode "overview" or "build_order" to see the ids.')
                         }
                         const design = await resolver.design(resolved.architectureId)
-                        const slice = sliceComponent(design.architecture_json, component_id)
+                        const slice = sliceComponent(design.architecture_json, component_id, design.requirement_ledger)
                         if (!slice) {
                             const known = (design.architecture_json.components ?? []).map((c) => c.id).join(', ')
                             return failure(
@@ -141,6 +147,9 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             incoming.length
                                 ? `Called by: ${incoming.map((c) => c.source).join(', ')}`
                                 : 'Called by nothing in the design.',
+                            // Same order as the overview: what was asked for, then how the design
+                            // answered.
+                            ...requirementsServed(slice.cited_requirements),
                             // Labelled, and only when there are any. These bullets used to be
                             // printed bare under "Called by:", so a decision about the component
                             // read as a continuation of its edge list — and a design with no
@@ -310,6 +319,96 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                 }
             }),
     )
+}
+
+/**
+ * What the design was asked to do, line by line, and what became of each line.
+ *
+ * `R7` appears inside the design itself — on components, and on the decisions that carry their
+ * requirements — so until this block existed an agent reading `requirement_ids: ["R7"]` had the id
+ * and nowhere to look up what R7 said.
+ *
+ * **Nothing here is ever rendered as "met" or "satisfied".** The strongest thing the product knows
+ * about a requirement is that something in the design cites it and no check flagged a gap, and an
+ * agent told a requirement is met stops looking at it. The four status words say exactly how far
+ * each claim goes, and the sentence under the list says what each of them means, because the words
+ * alone are only obvious to whoever chose them.
+ *
+ * A version carrying no ledger prints none of this. A template, a reverse-engineered design, a
+ * version from before the analysis ran, and a server that predates the field all send nothing here
+ * — and "0 requirements" would report every one of them as a design that was asked for nothing.
+ */
+function requirementBlock(ledger: RequirementLedger | undefined): string[] {
+    const rows = orderRequirementRows(ledger?.rows ?? [])
+    if (!ledger || rows.length === 0) return []
+
+    // Counted off the rows being printed rather than read from the ledger's own `counts`, which is
+    // optional on the wire and computed over a set this response may not be showing in full. A
+    // heading that disagrees with the list under it is worse than one that ignores a field.
+    const attention = (['unmet', 'uncited', 'unchecked'] as const)
+        .map((status) => [rows.filter((row) => row.status === status).length, status] as const)
+        .filter(([count]) => count > 0)
+        .map(([count, status]) => `${count} ${status}`)
+
+    return [
+        '',
+        `Requirements — ${rows.length} total${attention.length ? `; ${attention.join(', ')}` : ''}:`,
+        ...rows.map(requirementLine),
+        'Statuses: `unmet` — the verifier judged the design does not satisfy it; `uncited` — nothing',
+        'in the design claims to address it; `unchecked` — something cites it and the verifier did not',
+        'check it; `cited` — cited with no gap found, which is not the same as proven.',
+        // Two facts about how far the statuses can be trusted, said only when the server states
+        // them. An absent `verification_state` is an older server, not a verifier that did not run,
+        // and claiming the second would be this package inventing a fact about someone's design.
+        ...(ledger.grounding_state === 'not_grounded'
+            ? ['This version records no citations at all, so `uncited` here means nothing recorded what',
+               'addresses the requirement — not that nothing in the design does.']
+            : []),
+        ...(ledger.verification_state === 'partial'
+            ? ['The verifier did not check every requirement in this set, so an `unchecked` row is',
+               'neither confirmed nor flagged.']
+            : ledger.verification_state === 'not_run'
+              ? ['The verifier did not run on this version, so an `unchecked` row is neither confirmed',
+                 'nor flagged.']
+              : []),
+        ...(ledger.analysis_degraded
+            ? ['The requirements analysis for this version ran degraded. Treat the list as incomplete.']
+            : []),
+    ]
+}
+
+/**
+ * The requirements the design cites this component against.
+ *
+ * `uncited` cannot appear here — a row nothing cites names no component — so the three statuses
+ * that can reach this list are the three explained. Nothing is printed when no row names the
+ * component: unlike a decision, where silence reads as "this component has no reasoning behind it"
+ * and is worth a sentence, a requirement that names other boxes says nothing about this one.
+ */
+function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] {
+    if (!rows?.length) return []
+    return [
+        '',
+        'Requirements the design cites this component for:',
+        ...rows.map(requirementLine),
+        '`unmet` — the verifier judged the design does not satisfy it; `unchecked` — the verifier did',
+        'not check it; `cited` — no gap found, which is not the same as proven.',
+    ]
+}
+
+/**
+ * One row: the id, what became of it, and what it actually says.
+ *
+ * The status is printed as the server sent it rather than mapped through a table of four, so a
+ * value added server-side arrives intact instead of being flattened into the nearest word this
+ * package happens to know. A row with no text at all says so — the whole point of the block is
+ * that an agent should not be left holding a bare `R7`, and printing one silently would look
+ * exactly like the behaviour this replaced.
+ */
+function requirementLine(row: RequirementLedgerRow): string {
+    const status = row.status ? ` [${row.status}]` : ''
+    const text = (row.text ?? '').trim()
+    return `- ${row.id}${status} ${text || '(no text recorded for this requirement)'}`
 }
 
 /**
