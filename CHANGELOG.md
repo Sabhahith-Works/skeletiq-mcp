@@ -11,6 +11,23 @@ new version.
 
 Nothing yet.
 
+## [0.1.2] — 2026-09-16
+
+### Changed
+
+- **`generate_architecture` now says what happens to a compliance regime SkeletIQ does not check.**
+  `constraints.compliance` described itself as `e.g. HIPAA, SOC2, PCI-DSS, GDPR`, which left an agent
+  guessing at two things. It omitted SOX, which *is* assessed and is the one of the five least likely
+  to be inferred from a prompt that says only "our auditors require it". And "e.g." never said
+  whether naming a regime off that list was useful or quietly ignored — so an agent carrying a
+  requirement for DPDP, CCPA or ISO 27001 had no way to decide whether to send it. Sending it is
+  worth doing: a regime with no requirement catalogue behind it is still recorded and carried into
+  the design brief as a requirement the agent has to satisfy itself, rather than dropped. The
+  description now names the five that are checked and states that rule. The field still accepts any
+  string — no schema change, and nothing different on the wire.
+
+  Installed clients read the published `dist/`, so this reaches an agent when it takes this version.
+
 ## [0.1.1] — 2026-09-10
 
 Everything the SkeletIQ API sends about a design now reaches the agent reading it. `0.1.0` mirrored

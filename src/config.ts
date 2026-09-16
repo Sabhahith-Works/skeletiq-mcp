@@ -6,7 +6,7 @@
  */
 
 export const SERVER_NAME = 'skeletiq'
-export const SERVER_VERSION = '0.1.1'
+export const SERVER_VERSION = '0.1.2'
 
 /** The hosted API. Overridden only for self-hosted installs and local development. */
 export const DEFAULT_API_URL = 'https://api.skeletiq.com'
