@@ -9,6 +9,20 @@ new version.
 
 ## [Unreleased]
 
+### Changed
+
+- **`get_design` marks the decisions a design rests on no cited source for.** The overview introduced
+  every decision as "settled, build to them", including the ones the design itself flags with
+  `assumption: true` because it could cite nothing behind them. An agent took a guess for a
+  constraint and built to it. Those decisions now end in ` (assumption)`, and the heading says to
+  confirm them first:
+  `Decisions taken — build to them; confirm the ones marked (assumption) first, they rest on no cited source:`.
+  The component slice does the same under "Decisions that mention it". When no decision is an
+  assumption, both headings are unchanged, byte for byte. A decision that appears in both of the
+  server's lists is marked when its grounded copy is an assumption, because the plain-string list
+  carries no flag. The structured half gains `assumed_decisions`, the marked subset, on both
+  modes. `design_decisions` and `related_decisions` stay plain strings.
+
 ### Added
 
 - **`get_design` reports the requirements a design was built from, and what became of each one.** A

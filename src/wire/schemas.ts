@@ -103,10 +103,10 @@ const GapEntrySchema = z.union([
  * an OSS build, or a fallback generation still writes plain strings, and the two lists carry
  * different text when they are both populated.
  *
- * `assumption` and `confidence` are received and not yet surfaced: promoting a decision from a
- * string to an object is a breaking change to what this package promises its callers, and this is a
- * patch. They are named here so the shape is on record and the change is a decision rather than a
- * discovery.
+ * `assumption` is surfaced without promoting a decision from a string to an object, which would be
+ * a breaking change to what this package promises its callers: `get_design` marks those decisions
+ * `(assumption)` in its text and lists them in an additive `assumed_decisions`. `confidence` is
+ * received and not yet surfaced. Both are named here so the shape is on record.
  */
 export const GroundedDecisionSchema = z.looseObject({
     text: z.string(),

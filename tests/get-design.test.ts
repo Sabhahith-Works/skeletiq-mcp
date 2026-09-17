@@ -286,6 +286,86 @@ describe('the decisions a design states', () => {
     })
 })
 
+describe('a decision that rests on an assumption says so', () => {
+    // A grounded decision carries `assumption: true` when the design could cite nothing for it. The
+    // overview called every decision "settled", so an agent built to a guess the design had already
+    // flagged — and on stored designs most decisions carry that flag.
+
+    it('marks it in the overview and says what the mark means', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        const lines = text(result).split('\n')
+        expect(lines).toContain(
+            'Decisions taken — build to them; confirm the ones marked (assumption) first, they rest on no cited source:',
+        )
+        expect(lines).toContain(
+            '- Redis fronts reads because the hot set is small and the read:write ratio is high. (assumption)',
+        )
+        expect(lines).toContain('- Postgres was chosen for the Links Database because the data is relational.')
+        expect(text(result)).not.toMatch(/these are settled/)
+    })
+
+    it('lists the marked decisions in the structured half, leaving design_decisions as plain strings', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        const data = result.structuredContent?.data as { design_decisions: string[]; assumed_decisions: string[] }
+        expect(data.design_decisions).toHaveLength(2)
+        expect(data.assumed_decisions).toEqual([
+            'Redis fronts reads because the hot set is small and the read:write ratio is high.',
+        ])
+    })
+
+    it('marks a decision both lists carry when its grounded copy is an assumption', async () => {
+        // The legacy list carries no flag, so its silence is not a claim the decision is sourced.
+        const shared = 'Postgres was chosen for the Links Database because the data is relational.'
+        await open(
+            designRoutes({
+                ...DESIGN,
+                design_decisions: [shared],
+                grounded_decisions: [{ text: shared, requirement_ids: ['R1'], assumption: true }],
+            }),
+        )
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+
+        expect(text(result).split('\n')).toContain(`- ${shared} (assumption)`)
+    })
+
+    it('marks it in the component slice too', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'cache',
+        })
+
+        const slice = result.structuredContent?.data as { assumed_decisions: string[] }
+        expect(slice.assumed_decisions).toHaveLength(1)
+        const lines = text(result).split('\n')
+        expect(lines).toContain(
+            'Decisions that mention it — confirm the ones marked (assumption) first, they rest on no cited source:',
+        )
+        expect(lines).toContain(
+            '- Redis fronts reads because the hot set is small and the read:write ratio is high. (assumption)',
+        )
+    })
+
+    it('keeps the settled heading, byte for byte, when no decision is an assumption', async () => {
+        await open(designRoutes(GROUNDED_DESIGN))
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'db' })
+
+        const lines = text(result).split('\n')
+        expect(lines).toContain('Decisions that mention it:')
+        expect(lines).toContain('- Postgres was chosen for the Links Database because the data is relational.')
+    })
+})
+
 describe('the requirements a design was built from', () => {
     // `R7` appears inside the design itself — on components, and on grounded decisions — and an
     // agent reading `requirement_ids: ["R7"]` had the id and nowhere to look up what R7 said. The

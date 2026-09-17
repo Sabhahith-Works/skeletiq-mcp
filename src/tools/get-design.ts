@@ -63,6 +63,24 @@ const output = z.object({
     data: z.unknown(),
 })
 
+/**
+ * The heading over a list of decisions. Byte-identical to what it always was when nothing in the
+ * list is an assumption, so a design with fully sourced decisions reads exactly as before; otherwise
+ * it says what the mark means where the mark first appears.
+ */
+function decisionsHeading(assumed: string[], settled: string, withAssumptions: string): string {
+    return assumed.length > 0 ? withAssumptions : settled
+}
+
+/**
+ * One bullet per decision, with ` (assumption)` on those the design could cite nothing for. Calling
+ * every decision settled told an agent to build to a guess the design had already flagged.
+ */
+function decisionLines(decisions: string[], assumed: string[]): string[] {
+    const marked = new Set(assumed)
+    return decisions.map((decision) => `- ${decision}${marked.has(decision) ? ' (assumption)' : ''}`)
+}
+
 export function registerGetDesign(server: McpServer, client: SkeletiqClient, resolver: DesignResolver): void {
     server.registerTool(
         'get_design',
@@ -111,8 +129,10 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             // silently undo one. Said here because it is the answer to "why is it
                             // like this", and the overview is where that gets asked.
                             ...(data.design_decisions.length
-                                ? ['', 'Decisions taken — these are settled, build to them:',
-                                   ...data.design_decisions.map((decision) => `- ${decision}`)]
+                                ? ['', decisionsHeading(data.assumed_decisions,
+                                       'Decisions taken — these are settled, build to them:',
+                                       'Decisions taken — build to them; confirm the ones marked (assumption) first, they rest on no cited source:'),
+                                   ...decisionLines(data.design_decisions, data.assumed_decisions)]
                                 : []),
                             ...(data.trade_offs.length
                                 ? ['', 'Trade-offs the design accepts:',
@@ -158,8 +178,10 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             // matching decision printed nothing at all, which reads as a design
                             // with no reasoning rather than as a decision that names other boxes.
                             ...(slice.related_decisions.length
-                                ? ['', 'Decisions that mention it:',
-                                   ...slice.related_decisions.map((decision) => `- ${decision}`)]
+                                ? ['', decisionsHeading(slice.assumed_decisions,
+                                       'Decisions that mention it:',
+                                       'Decisions that mention it — confirm the ones marked (assumption) first, they rest on no cited source:'),
+                                   ...decisionLines(slice.related_decisions, slice.assumed_decisions)]
                                 : ['', 'No decision in this design names this component. That is not the same as',
                                    'no reason — use mode "overview" for the design\'s decisions in full.']),
                             '',

@@ -27,6 +27,8 @@ export interface ComponentSlice {
     incoming: Connection[]
     /** Design decisions that name this component or its technology, best-effort. */
     related_decisions: string[]
+    /** The entries of `related_decisions` the design marks as resting on no cited source. */
+    assumed_decisions: string[]
     /**
      * Ledger rows whose `cited_by_components` names this component — the server's cited-by, in the
      * order they are printed.
@@ -59,11 +61,13 @@ export function sliceComponent(
     if (!component) return null
 
     const connections = design.connections ?? []
+    const related = relatedDecisions(design, component)
     return {
         component,
         outgoing: connections.filter((c) => c.source === component.id),
         incoming: connections.filter((c) => c.target === component.id),
-        related_decisions: relatedDecisions(design, component),
+        related_decisions: related,
+        assumed_decisions: assumedAmong(design, related),
         ...(ledger ? { cited_requirements: citedRequirements(ledger, component.id) } : {}),
     }
 }
@@ -120,22 +124,56 @@ function statusRank(row: RequirementLedgerRow): number {
  * states them — the design's own sequence is the only ordering anyone has a claim on.
  */
 export function decisionTexts(design: ArchitectureJson): string[] {
-    const seen = new Set<string>()
-    const out: string[] = []
-    const push = (text: string | undefined): void => {
+    return decisionEntries(design).map((entry) => entry.text)
+}
+
+/** One decision the design states, and whether the design marks it as resting on no cited source. */
+export interface DecisionEntry {
+    text: string
+    assumption: boolean
+}
+
+/**
+ * The union `decisionTexts` describes, with each decision's `assumption` flag carried alongside.
+ *
+ * A grounded decision says `assumption: true` when the design could cite nothing for it. Reading
+ * every decision as settled told an agent to build to a choice the design itself had flagged as a
+ * guess. A text is an assumption when **any** grounded copy of it says so: the legacy list carries
+ * no flag at all, so its silence is not a claim that the decision is sourced.
+ */
+export function decisionEntries(design: ArchitectureJson): DecisionEntry[] {
+    const byText = new Map<string, DecisionEntry>()
+    const out: DecisionEntry[] = []
+    const push = (text: string | undefined, assumption: boolean): void => {
         if (typeof text !== 'string') return
         const trimmed = text.trim()
+        if (trimmed.length === 0) return
         // Deduped on the exact text, which is the only identity two lists of free-form sentences
         // share. Two decisions phrased differently are two decisions, and merging them would be a
         // judgement this package has no standing to make.
-        if (trimmed.length === 0 || seen.has(trimmed)) return
-        seen.add(trimmed)
-        out.push(trimmed)
+        const existing = byText.get(trimmed)
+        if (existing) {
+            existing.assumption = existing.assumption || assumption
+            return
+        }
+        const entry = { text: trimmed, assumption }
+        byText.set(trimmed, entry)
+        out.push(entry)
     }
 
-    for (const decision of design.design_decisions ?? []) push(decision)
-    for (const decision of design.grounded_decisions ?? []) push(decision?.text)
+    for (const decision of design.design_decisions ?? []) push(decision, false)
+    for (const decision of design.grounded_decisions ?? []) push(decision?.text, decision?.assumption === true)
     return out
+}
+
+/** The members of `texts` the design marks as assumptions, in the order given. */
+function assumedAmong(design: ArchitectureJson, texts: string[]): string[] {
+    const assumed = new Set(
+        decisionEntries(design)
+            .filter((entry) => entry.assumption)
+            .map((entry) => entry.text),
+    )
+    return texts.filter((text) => assumed.has(text))
 }
 
 /**
@@ -174,15 +212,21 @@ export function overview(
     components: Component[]
     connections: Connection[]
     design_decisions: string[]
+    assumed_decisions: string[]
     trade_offs: string[]
     requirement_ledger?: RequirementLedger
 } {
+    const decisions = decisionTexts(design)
     return {
         title: design.title ?? 'Untitled design',
         description: design.description ?? '',
         components: design.components ?? [],
         connections: design.connections ?? [],
-        design_decisions: decisionTexts(design),
+        design_decisions: decisions,
+        // A subset of `design_decisions`, not a second list of decisions: which of them the design
+        // marks as resting on no cited source. Additive, so `design_decisions` stays the plain
+        // strings every existing caller reads.
+        assumed_decisions: assumedAmong(design, decisions),
         trade_offs: design.trade_offs ?? [],
         // Carried verbatim, rows in the server's order, and only when the version has one. This is
         // a rebuild from named keys, so anything not named here is dropped without a trace — which
