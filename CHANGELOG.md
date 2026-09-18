@@ -7,7 +7,7 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
-## [Unreleased]
+## [0.2.0] — 2026-09-18
 
 ### Changed
 
