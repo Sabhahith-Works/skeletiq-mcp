@@ -1413,6 +1413,12 @@
           "nullable": false,
           "item": null
         },
+        "untraced": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "user_supplied": {
           "required": false,
           "kind": "scalar",

@@ -164,6 +164,8 @@ export const RequirementLedgerCountsSchema = z.looseObject({
     uncited: z.number().optional(),
     unchecked: z.number().optional(),
     cited: z.number().optional(),
+    /** Rows citing no component and no decision (overlaps `unmet`). Absent from older APIs. */
+    untraced: z.number().optional(),
 })
 export type RequirementLedgerCounts = z.infer<typeof RequirementLedgerCountsSchema>
 
