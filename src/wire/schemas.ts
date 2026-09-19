@@ -359,6 +359,14 @@ export const CritiqueFindingSchema = z.looseObject({
     remediation: z.string().optional(),
     /** Reported in full and never charged against the score — advice, not a problem to fix. */
     advisory_only: z.boolean().optional(),
+    /**
+     * The problem this finding is about. Stable across rewording, and shared with the advisor
+     * suggestion and decision record raised by the same problem — the key a dismissal is recorded
+     * against.
+     */
+    problem_key: z.string().optional(),
+    /** The project set this problem aside, with a reason. Still reported; never set on an unsaved payload. */
+    dismissed: z.boolean().optional(),
 })
 
 export const PayloadCritiqueSchema = z.looseObject({

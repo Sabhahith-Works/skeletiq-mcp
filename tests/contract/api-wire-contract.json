@@ -596,6 +596,12 @@
           "nullable": true,
           "item": "FindingConfidenceSchema"
         },
+        "dismissed": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "evidence": {
           "required": false,
           "kind": "scalar",
@@ -633,6 +639,12 @@
           "item": null
         },
         "pattern_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "problem_key": {
           "required": true,
           "kind": "scalar",
           "nullable": false,
