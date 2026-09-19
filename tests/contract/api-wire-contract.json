@@ -1476,6 +1476,18 @@
           "nullable": false,
           "item": null
         },
+        "superseded_by_change_request": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "superseded_in_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "text": {
           "required": true,
           "kind": "scalar",
@@ -1522,6 +1534,12 @@
           "item": null
         },
         "rows": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "RequirementLedgerRow"
+        },
+        "superseded": {
           "required": false,
           "kind": "list",
           "nullable": false,

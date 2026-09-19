@@ -153,6 +153,10 @@ export const RequirementLedgerRowSchema = z.looseObject({
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),
     added_in_version: z.number().nullable().optional(),
+    /** Set only on a row under `RequirementLedger.superseded`: an instruction an earlier analysis
+     * recorded as a requirement, now the change request it names (`CR5`). Absent from older APIs. */
+    superseded_by_change_request: z.string().nullable().optional(),
+    superseded_in_version: z.number().nullable().optional(),
 })
 export type RequirementLedgerRow = z.infer<typeof RequirementLedgerRowSchema>
 
@@ -180,6 +184,9 @@ export type RequirementLedgerCounts = z.infer<typeof RequirementLedgerCountsSche
  */
 export const RequirementLedgerSchema = z.looseObject({
     rows: z.array(RequirementLedgerRowSchema).nullable().optional(),
+    /** Ids that were instructions, not requirements. Counted nowhere; listed so an id a component
+     * or decision still cites resolves to what became of it. Absent from older APIs. */
+    superseded: z.array(RequirementLedgerRowSchema).nullable().optional(),
     analysis_version: z.number().nullable().optional(),
     analysis_degraded: z.boolean().optional(),
     /** `grounded` | `not_grounded` | `diverged`. */
