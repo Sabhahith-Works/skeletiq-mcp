@@ -200,6 +200,43 @@ describe('where the framework set came from', () => {
     })
 })
 
+describe('advice is not a problem', () => {
+    /**
+     * Every compliance finding this tool can return is for a framework nobody named — it has no
+     * parameter for naming one — so the server sends each as `advisory_only`: reported, never
+     * charged against the score. A bare `[critical]` beside one reads as a blocker the product
+     * does not consider one.
+     */
+    const PCI = {
+        severity: 'critical',
+        pattern_id: 'compliance_pci_data_protection',
+        category: 'risk',
+        message: 'Cardholder data is not protected.',
+        affected_components: [],
+        remediation: 'Encrypt it at rest',
+    }
+
+    it('labels an advisory finding as advice, in the structure and in the text', async () => {
+        await open(critiqueBody({ findings: [{ ...PCI, advisory_only: true }] }))
+
+        const result = await harness!.call('critique_architecture', { architecture_json: ARCHITECTURE })
+
+        const findings = result.structuredContent?.findings as Array<Record<string, unknown>>
+        expect(findings[0]!.advisory_only).toBe(true)
+        expect(result.content?.[0]?.text ?? '').toContain('[critical · advisory, not scored] Cardholder')
+    })
+
+    it('leaves the same finding unlabelled when the server counts it', async () => {
+        await open(critiqueBody({ findings: [PCI] }))
+
+        const result = await harness!.call('critique_architecture', { architecture_json: ARCHITECTURE })
+
+        const findings = result.structuredContent?.findings as Array<Record<string, unknown>>
+        expect(findings[0]!.advisory_only).toBe(false)
+        expect(result.content?.[0]?.text ?? '').toContain('[critical] Cardholder')
+    })
+})
+
 describe('where the design runs', () => {
     /**
      * The four exposure-scoped checks — CDN, WAF, rate limiting and multi-region — ask whether

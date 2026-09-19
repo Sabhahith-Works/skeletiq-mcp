@@ -96,6 +96,12 @@ const output = z.object({
             message: z.string(),
             affected_components: z.array(z.string()),
             remediation: z.string(),
+            advisory_only: z
+                .boolean()
+                .describe(
+                    'True for advice: reported and never charged against the score — a framework ' +
+                        'nobody named, or a check too uncertain to count. Not a problem to fix.',
+                ),
         }),
     ),
     finding_count: z.number(),
@@ -153,6 +159,8 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                         message: finding.message,
                         affected_components: finding.affected_components ?? [],
                         remediation: finding.remediation ?? '',
+                        // A server too old to send the flag predates it, and counted every finding.
+                        advisory_only: finding.advisory_only ?? false,
                     }))
 
                 // Reported, not inferred from an empty list: "no frameworks" and "no domain to
@@ -199,7 +207,9 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     findings.length === 0 ? 'No findings.' : `${findings.length} finding(s):`,
                     ...findings.map(
                         (finding) =>
-                            `- [${finding.severity}] ${finding.message}` +
+                            // Said on the line, because a severity alone reads as a blocker: an
+                            // advisory critical is one the score and the app's verdict both ignore.
+                            `- [${finding.severity}${finding.advisory_only ? ' · advisory, not scored' : ''}] ${finding.message}` +
                             (finding.affected_components.length ? ` (${finding.affected_components.join(', ')})` : '') +
                             (finding.remediation ? `\n  Fix: ${finding.remediation}` : ''),
                     ),

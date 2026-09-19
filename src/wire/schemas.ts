@@ -357,6 +357,8 @@ export const CritiqueFindingSchema = z.looseObject({
     affected_components: z.array(z.string()).optional(),
     evidence: z.string().optional(),
     remediation: z.string().optional(),
+    /** Reported in full and never charged against the score — advice, not a problem to fix. */
+    advisory_only: z.boolean().optional(),
 })
 
 export const PayloadCritiqueSchema = z.looseObject({

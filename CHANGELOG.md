@@ -24,6 +24,11 @@ new version.
   ledger. That is one extra request per version described, not per version listed, and an overview
   followed by any number of component slices of the same version still share it. The fixtures now
   serve both reads in their real shapes, and a test fails if the ledger stops reaching either view.
+- **`critique_architecture` no longer prints a framework nobody named as a failure.** A finding for a
+  compliance framework the design never asked for is advice: the API marks it `advisory_only` and
+  leaves it out of the score. The connector printed it like any other finding, so an unsaved payload,
+  which names no frameworks, came back full of plain `[critical]` compliance lines. Those lines now
+  read "advisory, not scored".
 - **`get_design(mode: "readiness")` passes on why a check has no answer.** When the server could not
   answer a row for this version it says why — "computed for version 4, not this one", or "no advisor
   suggestions are stored for this version" — and that sentence was dropped, leaving a bare

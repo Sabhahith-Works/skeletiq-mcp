@@ -181,16 +181,7 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
  * the entry turns red and has to be deleted. The list can only ever shrink, and it cannot be
  * quietly outlived.
  */
-const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
-    CritiqueFindingSchema: {
-        advisory_only:
-            'A finding reported in full and never charged against the score. An agent handed a ' +
-            'high-severity advisory finding treats it as a blocker the product does not consider ' +
-            'one. It differs from the fields that emptied this table in being a documented ' +
-            "narrowing rather than an accident — the critique tool's `outputSchema` publishes five " +
-            'finding fields on purpose — so widening it is an owner decision, not yet taken.',
-    },
-}
+const KNOWN_DEFECTS: Record<string, Record<string, string>> = {}
 
 // ─── Reading the connector ───────────────────────────────────────────
 
