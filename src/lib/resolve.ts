@@ -13,6 +13,13 @@
  * The per-process cache exists because a session asks about the same design repeatedly — an
  * overview, then four component slices, then a drift check — and re-fetching a design that cannot
  * change underneath a released id is waste the model pays for in latency.
+ *
+ * **Two caches, because the two reads return different things.** The version list is a summary:
+ * the API leaves the requirements ledger off every list item on purpose, because computing it for
+ * a hundred versions to pick one would be the expensive half of the request. A list item is enough
+ * to *choose* a version and never enough to *describe* one. Up to 0.2.0 this file cached list items
+ * as if they were full designs, so `get_design` read the ledger off a row that never carries it and
+ * no answer ever listed a requirement. Only `GET /architectures/{id}` fills `designs` now.
  */
 
 import type { SkeletiqClient } from '../http/client.js'
@@ -53,7 +60,9 @@ const ARCHITECTURE_PAGE_SIZE = 100
 
 export class DesignResolver {
     private readonly client: SkeletiqClient
+    /** Version summaries per project — enough to choose a version, never to describe one. */
     private readonly versions = new Map<string, Architecture[]>()
+    /** Full records from the single-version read, the requirements ledger included. */
     private readonly designs = new Map<string, Architecture>()
 
     constructor(client: SkeletiqClient) {
@@ -89,7 +98,11 @@ export class DesignResolver {
         throw new AmbiguousProjectError(idOrQuery, candidates)
     }
 
-    /** Every version of a project, newest first. Cached: one call serves a whole session. */
+    /**
+     * Every version of a project, newest first. Cached: one call serves a whole session.
+     *
+     * These are summaries. They seed nothing in `designs` — see the file header for why.
+     */
     async versionsFor(projectId: string): Promise<Architecture[]> {
         const cached = this.versions.get(projectId)
         if (cached) return cached
@@ -100,7 +113,6 @@ export class DesignResolver {
         const items = [...ArchitecturePageSchema.parse(body).items].sort((a, b) => b.version - a.version)
 
         this.versions.set(projectId, items)
-        for (const item of items) this.designs.set(item.id, item)
         return items
     }
 
@@ -149,10 +161,10 @@ export class DesignResolver {
     }
 
     /**
-     * The full design for one version.
+     * The full design for one version, from the single-version read.
      *
-     * The list response already carries `architecture_json`, so the cache seeded by
-     * `versionsFor` usually answers this without a second request.
+     * One request per version a session actually describes, not one per version in the list:
+     * an overview and any number of component slices of the same version share it.
      */
     async design(architectureId: string): Promise<Architecture> {
         const cached = this.designs.get(architectureId)

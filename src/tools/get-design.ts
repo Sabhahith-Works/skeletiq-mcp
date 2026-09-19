@@ -34,9 +34,10 @@ const input = z.object({
     mode: z
         .enum(MODES)
         .describe(
-            'overview: the whole design, and the requirements it was built from with what became of each. ' +
-                'component: one component, its connections in both directions, the decisions that mention it, ' +
-                'and the requirements the design cites it for. ' +
+            'overview: the whole design and, where the version records them, the requirements it was built ' +
+                'from with what became of each. ' +
+                'component: one component, its connections in both directions (the source calls the target), ' +
+                'the decisions that mention it, and the requirements the design cites it for. ' +
                 'brief: the fenced markdown block to write into AGENTS.md. ' +
                 'readiness: what still has to be decided before this design is worth building. ' +
                 'build_order: the order to build components in, and why. ' +
@@ -89,8 +90,9 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
             description:
                 'Read a SkeletIQ architecture. Start with mode "brief" to orient — it returns a fenced ' +
                 'block to write into AGENTS.md — then "build_order" for the sequence and "component" for ' +
-                'each piece as you build it. "overview" and "component" also resolve the R-ids the design ' +
-                'carries to the requirements they name, and say what became of each. Every answer states ' +
+                'each piece as you build it. Where a version records its requirements, "overview" and ' +
+                '"component" also resolve the R-ids the design carries to the requirements they name, and ' +
+                'say what became of each. Every answer states ' +
                 'which version it came from and whether that version is a release.',
             inputSchema: input,
             outputSchema: output,
@@ -248,12 +250,16 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             ...listed.map((row) => `- ${row.label}: ${describeRow(row)}`),
                             '',
                             'Advisory checks (they never block, and some need a paid plan to clear):',
-                            // An advisory that never ran is marked, not counted. "The advisor has
-                            // not looked at this design" is a fact an agent being handed work is
-                            // entitled to, and it is invisible in a bare count of open items.
+                            // An advisory with no result is marked, not counted — "nothing to count
+                            // here" is a fact an agent being handed work is entitled to, and it is
+                            // invisible in a bare count of open items. The mark claims no more than
+                            // that: an advisory can be unanswered because no result is *stored* for
+                            // this version (the advisor row since the server stopped writing on
+                            // read), not only because nothing ever ran, and the server's own
+                            // sentence, when it sends one, says which.
                             ...advisories.map(
                                 (row) =>
-                                    `- ${row.label}: ${describeRow(row)}${unrun.has(row.key) ? ' (never run on this version)' : ''}`,
+                                    `- ${row.label}: ${describeRow(row)}${unrun.has(row.key) && !row.detail ? ' (no result for this version)' : ''}`,
                             ),
                             // The same list, under the same heading, as the app shows beside its
                             // Release button. A person clicking Release is told what the release
@@ -465,6 +471,6 @@ function settledAnswer(gap: { action?: string | null; note?: string | null; adr_
 }
 
 function describeRow(row: { count: number; state: string; detail?: string | null }): string {
-    if (row.state === 'unknown') return 'not checked'
+    if (row.state === 'unknown') return `not checked${row.detail ? ` — ${row.detail}` : ''}`
     return `${row.count}${row.detail ? ` — ${row.detail}` : ''}`
 }

@@ -6,9 +6,10 @@
  * bytes on a socket: the process fetches one design and caches it, and each slice costs nothing
  * but keeps eleven components the agent is not touching out of its prompt.
  *
- * A component's edges come back in both directions. The design orients an edge by data flow; an
- * agent implementing a service needs to know who calls it just as much as what it calls, and
- * handing it only the outgoing half would be a quiet half-truth.
+ * A component's edges come back in both directions. The design orients an edge from caller to
+ * callee — the source calls the target, the same reading `build_order` states — and an agent
+ * implementing a service needs to know who calls it just as much as what it calls, so handing it
+ * only the outgoing half would be a quiet half-truth.
  */
 
 import type {

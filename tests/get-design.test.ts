@@ -13,6 +13,7 @@ import {
     MIXED_DESIGN,
     PROJECT_ID,
     RELEASE_FACTS,
+    architecturePage,
     baseRoutes,
     designRoutes,
     fakeApi,
@@ -71,6 +72,10 @@ describe('the version rule', () => {
                 },
             },
             { match: `GET /api/v1/projects/${PROJECT_ID}`, body: { id: PROJECT_ID, title: 'Shortener' } },
+            {
+                match: `GET /api/v1/architectures/${ARCH_V3}`,
+                body: { id: ARCH_V3, project_id: PROJECT_ID, version: 2, architecture_json: DESIGN, is_released: false },
+            },
         ])
         harness = await startHarness(api.fetch)
 
@@ -101,8 +106,11 @@ describe('the version rule', () => {
 
         const listCalls = api.calls.filter((call) => call.url.includes('/architectures?'))
         expect(listCalls).toHaveLength(1)
-        // The list already carries `architecture_json`, so the slices never re-read the design.
-        expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V2}`))).toHaveLength(0)
+        // The version being described is read on its own exactly once — the list item lacks the
+        // ledger — and that one read serves the overview and every slice after it. Nothing reads
+        // the draft nobody asked about.
+        expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V2}`))).toHaveLength(1)
+        expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V3}`))).toHaveLength(0)
     })
 })
 
@@ -375,6 +383,34 @@ describe('the requirements a design was built from', () => {
     async function withLedger(ledger: unknown = LEDGER): Promise<void> {
         await open(designRoutes(DESIGN, { requirement_ledger: ledger }))
     }
+
+    it('reaches overview and component although the version list never carries the ledger', async () => {
+        // The regression 0.2.0 shipped: the resolver cached list items as full designs, and the
+        // list endpoint omits `requirement_ledger` on purpose, so in production no answer ever
+        // listed a requirement. Served in exactly the real shape — the ledger on the single-version
+        // read and nowhere else — both views must still show it, and it must come from that read.
+        const api = await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
+                body: architecturePage(),
+            },
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}`,
+                body: { id: ARCH_V2, project_id: PROJECT_ID, version: 2, architecture_json: DESIGN, is_released: true, requirement_ledger: LEDGER },
+            },
+        ])
+
+        const overviewText = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+        const componentText = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'db' }),
+        )
+
+        expect(overviewText).toContain('- R2 [unmet] Every write to a link is recorded in an audit trail.')
+        expect(componentText).toContain('- R2 [unmet] Every write to a link is recorded in an audit trail.')
+        const listed = api.calls.find((call) => call.url.includes('/architectures?'))
+        expect(listed).toBeDefined()
+        expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V2}`))).toHaveLength(1)
+    })
 
     it('lists them in the overview, resolved to text, with what became of each', async () => {
         await withLedger()
@@ -892,9 +928,43 @@ describe('readiness and gaps', () => {
         expect(text(result)).not.toMatch(/0 of \d+ gate\(s\) still open/)
         expect(text(result)).toMatch(/1 check\(s\) could not be answered for this version/)
         // And it names which one, with the version it actually answered for.
-        expect(text(result)).toMatch(/Release blockers: not checked/)
-        // The unrun advisory is marked rather than counted.
-        expect(text(result)).toMatch(/Advisor suggestions open: not checked \(never run on this version\)/)
+        // Up to 0.2.0 the server's reason was dropped for every unanswered row, so this line
+        // claimed a version it never printed.
+        expect(text(result)).toMatch(/Release blockers: not checked — Computed for version 4, not this one/)
+        // The unanswered advisory is marked rather than counted, and claims no more than that it
+        // has no result — not that nothing ever ran.
+        expect(text(result)).toMatch(/Advisor suggestions open: not checked \(no result for this version\)/)
+        expect(text(result)).not.toMatch(/never run/)
+    })
+
+    it('passes on the server\'s reason for an unanswered advisory instead of guessing one', async () => {
+        // The server says *why* the advisor row has no count — since it stopped writing on read,
+        // that is usually "none stored", not "never ran". The reason reaches the agent verbatim,
+        // and no second, contradicting mark is added after it.
+        const reason = 'No advisor suggestions are stored for this version, so they are not counted here'
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    verdict: 'ready',
+                    unknown_gate_count: 0,
+                    unrun_checks: ['advisor_pending'],
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 0, state: 'clear', category: 'gate', gating: false },
+                        { key: 'advisor_pending', label: 'Advisor suggestions open', count: 0, state: 'unknown', category: 'advisory', gating: false, detail: reason },
+                    ],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+
+        expect(body).toContain(`- Advisor suggestions open: not checked — ${reason}`)
+        expect(body).not.toMatch(/no result for this version|never run/)
     })
 
     it('says open gaps are questions for a person and that a token cannot resolve them', async () => {
@@ -1128,32 +1198,33 @@ describe('what a release would carry, and the answers it stranded', () => {
 
 describe('a design whose gaps carry a recommendation', () => {
     it('parses rather than erroring, because the server is allowed to add things', async () => {
+        // One row, served by both reads: the list chooses the version, the single read describes it.
+        const row = {
+            id: ARCH_V2,
+            project_id: PROJECT_ID,
+            version: 2,
+            is_released: true,
+            architecture_json: {
+                ...DESIGN,
+                // The newer shape, alongside the older one, exactly as a real
+                // payload mixes them: `z.array(z.string())` here would have made a
+                // richer design a *parse error* rather than a richer design.
+                open_questions: [
+                    { text: 'Which region?', recommendation: 'eu-west-1', options: ['eu-west-1', 'us-east-1'] },
+                ],
+                assumptions: ['Traffic is read-heavy.'],
+            },
+        }
         const api = fakeApi([
             {
                 match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
                 body: {
-                    items: [
-                        {
-                            id: ARCH_V2,
-                            project_id: PROJECT_ID,
-                            version: 2,
-                            is_released: true,
-                            architecture_json: {
-                                ...DESIGN,
-                                // The newer shape, alongside the older one, exactly as a real
-                                // payload mixes them: `z.array(z.string())` here would have made a
-                                // richer design a *parse error* rather than a richer design.
-                                open_questions: [
-                                    { text: 'Which region?', recommendation: 'eu-west-1', options: ['eu-west-1', 'us-east-1'] },
-                                ],
-                                assumptions: ['Traffic is read-heavy.'],
-                            },
-                        },
-                    ],
+                    items: [row],
                     total: 1,
                 },
             },
             { match: `GET /api/v1/projects/${PROJECT_ID}`, body: { id: PROJECT_ID, title: 'Shortener' } },
+            { match: `GET /api/v1/architectures/${ARCH_V2}`, body: row },
         ])
         harness = await startHarness(api.fetch)
 
@@ -1279,6 +1350,7 @@ describe('project resolution', () => {
                 },
             },
             { match: `GET /api/v1/projects/${PROJECT_ID}/architectures`, body: { items: [{ id: ARCH_V2, project_id: PROJECT_ID, version: 1, architecture_json: DESIGN, is_released: true }], total: 1 } },
+            { match: `GET /api/v1/architectures/${ARCH_V2}`, body: { id: ARCH_V2, project_id: PROJECT_ID, version: 1, architecture_json: DESIGN, is_released: true } },
         ])
         harness = await startHarness(api.fetch)
 

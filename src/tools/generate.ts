@@ -131,7 +131,12 @@ const constraintsInput = z.strictObject({
     read_write_mix: z
         .enum(['read_heavy', 'balanced', 'write_heavy'])
         .optional()
-        .describe('Nothing reads this from the prompt. Unset, the design assumes 80% reads.'),
+        // Honest about how little it does today: the capacity model applies the mix only to a
+        // cache in front of a database, so on a design without that edge it changes no number.
+        .describe(
+            'Nothing reads this from the prompt. Unset, the design assumes 80% reads. Today it only ' +
+                'changes sizing where a cache sits in front of a database; elsewhere it has no effect.',
+        ),
     burstiness: z
         .enum(['steady', 'daily_peaks', 'spiky'])
         .optional()

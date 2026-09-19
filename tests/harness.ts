@@ -294,25 +294,38 @@ export const LEDGER = {
  *
  * `record` is merged into the architecture *row*, beside `architecture_json` rather than inside it
  * — which is where every derived block the API computes lives, the requirement ledger included.
+ *
+ * **The two reads are shaped like the real ones, not like each other.** The list endpoint leaves
+ * `requirement_ledger` off every item (`handle_list_architectures` passes
+ * `include_requirement_ledger=False`); only `GET /architectures/{id}` carries it. Up to 0.2.0 this
+ * fixture put the ledger on the list items too, which is exactly the shape that let a resolver
+ * reading the ledger off a list item pass every test here and show no requirement in production.
  */
 export function designRoutes(design: unknown, record: Record<string, unknown> = {}): Route[] {
+    const listRecord = Object.fromEntries(Object.entries(record).filter(([key]) => key !== 'requirement_ledger'))
+    const row = (id: string, version: number, is_released: boolean) => ({
+        id,
+        project_id: PROJECT_ID,
+        version,
+        architecture_json: design,
+        is_released,
+    })
     return [
         {
             match: `GET /api/v1/projects/${PROJECT_ID}/architectures`,
             body: {
                 items: [
-                    { id: ARCH_V2, project_id: PROJECT_ID, version: 2, architecture_json: design, is_released: true, ...record },
-                    { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false, ...record },
+                    { ...row(ARCH_V2, 2, true), ...listRecord },
+                    { ...row(ARCH_V3, 3, false), ...listRecord },
                 ],
                 total: 2,
                 limit: 100,
                 offset: 0,
             },
         },
-        {
-            match: 'GET /api/v1/architectures/',
-            body: { id: ARCH_V3, project_id: PROJECT_ID, version: 3, architecture_json: design, is_released: false, ...record },
-        },
+        { match: `GET /api/v1/architectures/${ARCH_V2}`, body: { ...row(ARCH_V2, 2, true), ...record } },
+        { match: `GET /api/v1/architectures/${ARCH_V3}`, body: { ...row(ARCH_V3, 3, false), ...record } },
+        { match: 'GET /api/v1/architectures/', body: { ...row(ARCH_V3, 3, false), ...record } },
     ]
 }
 
@@ -342,14 +355,15 @@ export function projectList(projects = [{ id: PROJECT_ID, title: 'Shortener', ar
 }
 
 /**
- * `GET /architectures/{id}` — one version on its own.
+ * `GET /architectures/{id}` — one version on its own, and the only read that carries the
+ * requirements ledger.
  *
- * Only the inline generate path reads this: every other tool arrives with a project id and is
- * served from the version list. It is in `baseRoutes` so that path's happy case is the default,
- * and a test that wants the lookup to fail overrides it explicitly.
+ * `overview` and `component` read it for the version they describe, and the inline generate path
+ * reads it for the design it just created. It is in `baseRoutes` so those happy cases are the
+ * default, and a test that wants the lookup to fail overrides it explicitly.
  */
-export function architectureDetail(id = ARCH_V3, version = 3) {
-    return { id, project_id: PROJECT_ID, version, architecture_json: DESIGN, is_released: false }
+export function architectureDetail(id = ARCH_V3, version = 3, is_released = false) {
+    return { id, project_id: PROJECT_ID, version, architecture_json: DESIGN, is_released }
 }
 
 export function baseRoutes(extra: Route[] = []): Route[] {
@@ -358,6 +372,10 @@ export function baseRoutes(extra: Route[] = []): Route[] {
         { match: 'GET /api/v1/projects/', body: projectList() },
         { match: `GET /api/v1/projects/${PROJECT_ID}/architectures`, body: architecturePage() },
         { match: `GET /api/v1/projects/${PROJECT_ID}`, body: { id: PROJECT_ID, title: 'Shortener' } },
+        // Per id, so a read of v2 is answered as v2 rather than by whichever version the
+        // catch-all happens to describe.
+        { match: `GET /api/v1/architectures/${ARCH_V2}`, body: architectureDetail(ARCH_V2, 2, true) },
+        { match: `GET /api/v1/architectures/${ARCH_V3}`, body: architectureDetail(ARCH_V3, 3, false) },
         { match: 'GET /api/v1/architectures/', body: architectureDetail() },
     ]
 }

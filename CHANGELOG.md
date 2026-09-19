@@ -7,6 +7,38 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
+## [0.2.1] — 2026-09-19
+
+### Fixed
+
+- **`get_design` shows the requirements ledger it said it would.** `0.2.0` added the requirements a
+  design was built from, and what became of each, to `overview` and `component` — and in practice
+  neither ever printed one. To choose a version the connector reads the project's version list, and
+  it kept those list items as if they were whole designs. The list is a summary: the API leaves the
+  ledger off every item on purpose, because building it for a hundred versions to pick one is wasted
+  work. So the connector described each version from a row that never carries a ledger, and every
+  answer read like a design with no requirements analysis. Nothing failed, which is why it shipped:
+  the test fixtures put the ledger on the list items, a shape the real API never sends.
+
+  The version a session describes is now read on its own, from the endpoint that includes the
+  ledger. That is one extra request per version described, not per version listed, and an overview
+  followed by any number of component slices of the same version still share it. The fixtures now
+  serve both reads in their real shapes, and a test fails if the ledger stops reaching either view.
+- **`get_design(mode: "readiness")` passes on why a check has no answer.** When the server could not
+  answer a row for this version it says why — "computed for version 4, not this one", or "no advisor
+  suggestions are stored for this version" — and that sentence was dropped, leaving a bare
+  `not checked`. It is printed now. An unanswered advisory the server gives no reason for is marked
+  `(no result for this version)` instead of `(never run on this version)`: a result can be missing
+  because none is stored, which is not the same as nothing having run.
+
+### Changed
+
+- **Wording that promised more than the product does.** `constraints.read_write_mix` on
+  `generate_architecture` now says it only changes sizing where a cache sits in front of a database,
+  and has no effect elsewhere — which is what it does today. The `get_design` description says the
+  requirements appear where a version records them, and says which way a connection points: the
+  source calls the target, the same reading `build_order` already gave.
+
 ## [0.2.0] — 2026-09-18
 
 ### Changed
