@@ -75,7 +75,11 @@ const input = z.object({
         )
         .max(500)
         .optional()
-        .describe('Edges in the code the design does not have. Endpoints may be component ids or names.'),
+        .describe(
+            'Edges in the code the design does not have, each from the caller to the callee: the component ' +
+                'that holds the client is the source, including a consumer reading a queue. Endpoints may be ' +
+                'component ids or names.',
+        ),
 })
 
 const refs = z.array(z.object({ id: z.string(), name: z.string(), type: z.string() }))
