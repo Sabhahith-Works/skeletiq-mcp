@@ -235,9 +235,14 @@ export const MIXED_DESIGN = {
 /**
  * What a version says it was asked to do, and what became of each line.
  *
- * One row per status a reader has to tell apart. `cited` is deliberately the *first* row: the
- * server orders rows by R-number and the rendering groups by status, so a fixture already in the
- * order it prints in would pass a renderer that does no grouping at all.
+ * One row per verdict a reader has to tell apart. The settled one is deliberately the *first* row:
+ * the server orders rows by R-number and the rendering groups by verdict, so a fixture already in
+ * the order it prints in would pass a renderer that does no grouping at all.
+ *
+ * Every row carries **both** vocabularies, because the API does: `verdict` says which check
+ * answered and what it said, and `status` is the four-word summary 0.3.0 stopped printing. A
+ * fixture carrying only one of them could not tell a connector that reads the wrong one from one
+ * that reads the right one.
  *
  * `R1` is cited by two components, `R3` by none, and `cache` by no row at all — the cases the
  * component slice has to tell apart.
@@ -250,6 +255,10 @@ export const LEDGER = {
             kind: 'non_functional',
             source: 'user_supplied',
             status: 'cited',
+            verdict: 'no_gap_found',
+            check_method: 'structure',
+            verdict_reason: 'The design records a cache in front of the store, and nothing contradicts the target.',
+            checked_by: null,
             verifier_checked: true,
             cited_by_components: ['api', 'db'],
             cited_by_decisions: [1],
@@ -261,6 +270,10 @@ export const LEDGER = {
             kind: 'functional',
             source: 'llm_inferred',
             status: 'unmet',
+            verdict: 'fails',
+            check_method: 'verifier',
+            verdict_reason: 'No component in the design records writes.',
+            checked_by: 'gpt-5',
             verifier_checked: true,
             cited_by_components: ['db'],
             cited_by_decisions: [],
@@ -272,6 +285,10 @@ export const LEDGER = {
             kind: 'non_functional',
             source: 'user_supplied',
             status: 'uncited',
+            verdict: 'no_gap_found',
+            check_method: 'structure',
+            verdict_reason: null,
+            checked_by: null,
             verifier_checked: false,
             cited_by_components: [],
             cited_by_decisions: [],

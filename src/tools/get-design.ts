@@ -1,7 +1,7 @@
 /**
- * The read surface, collapsed into one tool with six modes.
+ * The read surface, collapsed into one tool with seven modes.
  *
- * Six tools that each read one endpoint would be six things for a model to choose between when the
+ * Seven tools that each read one endpoint would be seven things for a model to choose between when the
  * answer is nearly always "read the design". The mode is the choice, and it is a closed set the
  * agent can see in the schema.
  *
@@ -17,17 +17,20 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import type { SkeletiqClient } from '../http/client.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
-import { orderRequirementRows, overview, sliceComponent } from '../lib/slice.js'
+import { isCitedRequirement, orderRequirementRows, overview, sliceComponent } from '../lib/slice.js'
 import {
     BriefSchema,
     BuildOrderSchema,
     DesignGapListSchema,
     ReadinessSchema,
+    TodoSchema,
     type RequirementLedger,
     type RequirementLedgerRow,
+    type TodoGroup,
+    type TodoItem,
 } from '../wire/schemas.js'
 
-const MODES = ['overview', 'component', 'brief', 'readiness', 'build_order', 'gaps'] as const
+const MODES = ['overview', 'component', 'brief', 'todo', 'readiness', 'build_order', 'gaps'] as const
 
 const input = z.object({
     project_id: z.string().describe('A SkeletIQ project id, or its exact name.'),
@@ -39,7 +42,9 @@ const input = z.object({
                 'component: one component, its connections in both directions (the source calls the target), ' +
                 'the decisions that mention it, and the requirements the design cites it for. ' +
                 'brief: the fenced markdown block to write into AGENTS.md. ' +
-                'readiness: what still has to be decided before this design is worth building. ' +
+                'todo: everything still to do on this version, one card per problem — what blocks a ' +
+                'handoff, what is recommended, and what is waiting to be accepted. ' +
+                'readiness: the verdict, gate by gate, on whether this design is worth building yet. ' +
                 'build_order: the order to build components in, and why. ' +
                 'gaps: the open questions and unconfirmed assumptions in the design.',
         ),
@@ -89,8 +94,8 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
             title: 'Read a SkeletIQ design',
             description:
                 'Read a SkeletIQ architecture. Start with mode "brief" to orient — it returns a fenced ' +
-                'block to write into AGENTS.md — then "build_order" for the sequence and "component" for ' +
-                'each piece as you build it. Where a version records its requirements, "overview" and ' +
+                'block to write into AGENTS.md — then "todo" for what the design still needs, ' +
+                '"build_order" for the sequence and "component" for each piece as you build it. Where a version records its requirements, "overview" and ' +
                 '"component" also resolve the R-ids the design carries to the requirements they name, and ' +
                 'say what became of each. Every answer states ' +
                 'which version it came from and whether that version is a release.',
@@ -218,6 +223,40 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         ].filter(Boolean).join('\n'))
                     }
 
+                    case 'todo': {
+                        const body = await client.request<unknown>(`/architectures/${resolved.architectureId}/todo`)
+                        const todo = TodoSchema.parse(body)
+                        const facts = factsFrom(resolved)
+                        const groups = todo.groups ?? []
+                        const blocking = groups.find((group) => group.key === 'blocks_handoff')
+                        const total = groups.reduce((count, group) => count + group.items.length, 0)
+                        return ok({ ...base, ...facts, data: todo }, [
+                            total === 0
+                                ? 'Nothing is outstanding on this version.'
+                                : `${total} thing(s) still to do on this version` +
+                                  (blocking?.items.length
+                                      ? `, ${blocking.items.length} of which block a handoff:`
+                                      : ', none of which block a handoff:'),
+                            ...groups.flatMap(todoGroupBlock),
+                            // A source that could not be read is stated, never left to look like a
+                            // shorter list. An agent acting on "nothing is outstanding" when the
+                            // simulation results failed to load is the exact harm this prevents.
+                            ...(todo.unavailable_sources?.length
+                                ? ['',
+                                   'Some of this version could not be read, so the list above is incomplete:',
+                                   ...todo.unavailable_sources.map((entry) => `- ${entry.source}: ${entry.reason}`)]
+                                : []),
+                            '',
+                            // The actions are the person's. An agent that "accepts" an assumption
+                            // has decided something on their behalf, which is the one thing this
+                            // surface must never do — and the server refuses it anyway, because an
+                            // agent token reaches no write route.
+                            'Fix what you can in the design. Answering, accepting and dismissing are the ' +
+                                "person's to do — ask, do not decide for them.",
+                            versionLine(facts),
+                        ].join('\n'))
+                    }
+
                     case 'readiness': {
                         const body = await client.request<unknown>(`/architectures/${resolved.architectureId}/readiness`)
                         const readiness = ReadinessSchema.parse(body)
@@ -234,7 +273,14 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         // nothing, on a design that reports `ready: false`. The verdict is what
                         // separates the two reasons a design is not ready.
                         const unanswered = gates.filter((row) => row.state === 'unknown')
-                        const advisories = readiness.rows.filter((row) => row.category !== 'gate')
+                        // Three categories, not two. An `accept` row is something a person agrees
+                        // to — an assumption the design made, a decision waiting to be written
+                        // down — and filing it under "some need a paid plan to clear" was wrong
+                        // twice: accepting is free, and it is not a check anybody failed.
+                        const accepts = readiness.rows.filter((row) => row.category === 'accept')
+                        const advisories = readiness.rows.filter(
+                            (row) => row.category !== 'gate' && row.category !== 'accept',
+                        )
                         const unrun = new Set(readiness.unrun_checks ?? [])
                         const verdict =
                             readiness.verdict ?? (readiness.ready ? 'ready' : 'outstanding')
@@ -248,6 +294,12 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         return ok({ ...base, ...facts, data: readiness }, [
                             headline,
                             ...listed.map((row) => `- ${row.label}: ${describeRow(row)}`),
+                            ...(accepts.length
+                                ? ['',
+                                   'To accept (the person agrees to these rather than fixing them; accepting is free ' +
+                                       'and never blocks):',
+                                   ...accepts.map((row) => `- ${row.label}: ${describeRow(row)}`)]
+                                : []),
                             '',
                             'Advisory checks (they never block, and some need a paid plan to clear):',
                             // An advisory with no result is marked, not counted — "nothing to count
@@ -271,7 +323,8 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                                    ...readiness.release_warnings.map((warning) => `- ${warning}`)]
                                 : []),
                             '',
-                            'Only a person can clear a gate. Ask; do not decide on their behalf.',
+                            'Only a person can clear a gate. Ask; do not decide on their behalf. ' +
+                                'Use mode "todo" for the same work item by item.',
                             versionLine(facts),
                         ].join('\n'))
                     }
@@ -375,18 +428,23 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
     // Counted off the rows being printed rather than read from the ledger's own `counts`, which is
     // optional on the wire and computed over a set this response may not be showing in full. A
     // heading that disagrees with the list under it is worse than one that ignores a field.
-    const attention = (['unmet', 'uncited', 'unchecked'] as const)
-        .map((status) => [rows.filter((row) => row.status === status).length, status] as const)
-        .filter(([count]) => count > 0)
-        .map(([count, status]) => `${count} ${status}`)
+    const attention = [
+        [rows.filter((row) => verdictOf(row) === 'fails').length, 'failing'],
+        [rows.filter((row) => !isCitedRequirement(row)).length, 'cited by nothing'],
+        [rows.filter((row) => verdictOf(row) === 'not_checked' || verdictOf(row) === 'not_checkable').length, 'unchecked'],
+    ]
+        .filter(([count]) => (count as number) > 0)
+        .map(([count, word]) => `${count} ${word}`)
 
     return [
         '',
         `Requirements — ${rows.length} total${attention.length ? `; ${attention.join(', ')}` : ''}:`,
         ...rows.map(requirementLine),
-        'Statuses: `unmet` — the verifier judged the design does not satisfy it; `uncited` — nothing',
-        'in the design claims to address it; `unchecked` — something cites it and the verifier did not',
-        'check it; `cited` — cited with no gap found, which is not the same as proven.',
+        'Verdicts: `fails` — a named check measured the design as not meeting it, and says which and why;',
+        '`passes` — a check measured it against a figure the person stated; `no_gap_found` — nothing',
+        'contradicted it, which is not the same as proven; `not_checked` / `not_checkable` — nobody',
+        'established either way, and neither is fine. `cited by nothing` means no component and no',
+        'decision in the design claims to address it.',
         // Two facts about how far the statuses can be trusted, said only when the server states
         // them. An absent `verification_state` is an older server, not a verifier that did not run,
         // and claiming the second would be this package inventing a fact about someone's design.
@@ -421,30 +479,50 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
         '',
         'Requirements the design cites this component for:',
         ...rows.map(requirementLine),
-        '`unmet` — the verifier judged the design does not satisfy it; `unchecked` — the verifier did',
-        'not check it; `cited` — no gap found, which is not the same as proven.',
+        '`fails` — a named check measured the design as not meeting it; `not_checked` — nobody',
+        'established either way; `no_gap_found` — nothing contradicted it, which is not the same as proven.',
     ]
 }
 
 /**
- * One row: the id, what became of it, and what it actually says.
+ * What became of a requirement, in the vocabulary the server settled on.
  *
- * The status is printed as the server sent it rather than mapped through a table of four, so a
+ * `verdict` says which check answered and how far the answer goes; `status` was a four-word
+ * summary of it, and the summary is what 0.3.0 drops. A server that predates `verdict` still sends
+ * `status`, so its word is used rather than nothing — an older server must not turn every row
+ * blank.
+ */
+function verdictOf(row: RequirementLedgerRow): string {
+    return (row.verdict ?? row.status ?? '').trim()
+}
+
+/**
+ * One row: the id, what a named check said about it, why, and what it actually says.
+ *
+ * The verdict is printed as the server sent it rather than mapped through a table of five, so a
  * value added server-side arrives intact instead of being flattened into the nearest word this
- * package happens to know. A row with no text at all says so — the whole point of the block is
- * that an agent should not be left holding a bare `R7`, and printing one silently would look
- * exactly like the behaviour this replaced.
+ * package happens to know. `no reason given` is never printed as an answer: the reason is the
+ * whole value of the verdict, and a row without one is a row nobody can act on.
+ *
+ * A row with no text at all says so — the whole point of the block is that an agent should not be
+ * left holding a bare `R7`, and printing one silently would look exactly like the behaviour this
+ * replaced.
  *
  * The text is a requirement as a person or a model wrote it, and this list is newline-delimited, so
  * a line break inside one requirement would open a second row under the same heading — a row with
- * an id and a status that no server ever sent, indistinguishable from the real ones. Internal
+ * an id and a verdict that no server ever sent, indistinguishable from the real ones. Internal
  * whitespace is collapsed to keep one requirement on one line. Nothing is capped or truncated:
  * every requirement the version records is a requirement the agent has to build to.
  */
 function requirementLine(row: RequirementLedgerRow): string {
-    const status = row.status ? ` [${row.status}]` : ''
+    const verdict = verdictOf(row)
+    const marks = [verdict, ...(isCitedRequirement(row) ? [] : ['cited by nothing'])].filter(Boolean)
+    const label = marks.length > 0 ? ` [${marks.join(' · ')}]` : ''
     const text = (row.text ?? '').replace(/\s+/g, ' ').trim()
-    return `- ${row.id}${status} ${text || '(no text recorded for this requirement)'}`
+    const reason = (row.verdict_reason ?? '').replace(/\s+/g, ' ').trim()
+    const by = (row.checked_by ?? '').trim()
+    const because = reason ? ` — ${reason}${by ? ` (checked by ${by})` : ''}` : by ? ` — checked by ${by}` : ''
+    return `- ${row.id}${label} ${text || '(no text recorded for this requirement)'}${because}`
 }
 
 /**
@@ -468,6 +546,38 @@ function settledAnswer(gap: { action?: string | null; note?: string | null; adr_
     if (note) return note
     if (gap.action === 'confirmed') return 'confirmed as it stands'
     return 'answered, but no wording was recorded — ask before relying on it'
+}
+
+/**
+ * One To do group, as lines an agent can act on.
+ *
+ * Every source that raised a card is named on it. That is the whole point of the grouping: a card
+ * reading "raised by the review, the advisor and a pending decision" is one piece of work, where
+ * the same problem listed under three headings in three panels reads as three.
+ */
+function todoGroupBlock(group: TodoGroup): string[] {
+    if (group.items.length === 0) return []
+    return ['', `${group.label} (${group.items.length}):`, ...group.items.map(todoLine)]
+}
+
+/**
+ * One card: what it is, what raised it, and how far back it goes.
+ *
+ * `carried` is said because it changes what the line means. A problem this version introduced is
+ * something the last change did; one carried from three versions back has survived every attempt
+ * so far, and an agent handed the two as identical rows has no way to tell them apart.
+ */
+function todoLine(item: TodoItem): string {
+    const severity = item.severity && item.severity !== 'none' ? `[${item.severity}] ` : ''
+    const raisedBy = [...new Set((item.sources ?? []).map((source) => source.source))]
+    const raised = raisedBy.length > 0 ? ` — raised by ${raisedBy.join(', ')}` : ''
+    const carried = item.carried
+        ? item.carried_from_version
+            ? ` — carried from v${item.carried_from_version}`
+            : ' — carried from an earlier version'
+        : ''
+    const components = item.components?.length ? ` — affects ${item.components.join(', ')}` : ''
+    return `- ${severity}${item.title.replace(/\s+/g, ' ').trim()}${components}${raised}${carried}`
 }
 
 function describeRow(row: { count: number; state: string; detail?: string | null }): string {

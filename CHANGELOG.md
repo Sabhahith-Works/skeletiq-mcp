@@ -7,6 +7,50 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
+## [0.3.0] — unreleased
+
+The vocabulary changes. A design's outstanding work now has one name on every surface — SkeletIQ
+calls it the To do list — and the four-word requirement status it used to print is gone in favour
+of the verdict it was a summary of.
+
+### Added
+
+- **`get_design(mode: "todo")`.** Everything still to do on a version, one entry per problem
+  whichever part of the product raised it. The review, the advisor and a pending decision routinely
+  describe one problem three times; an agent reading them as three separate panels had no way to
+  see that fixing one thing cleared all three. Entries come in three groups — what blocks a
+  handoff, what is recommended, and what is waiting for the person to accept it — and each one
+  names the sources that raised it, the components it affects, and how far back it goes ("carried
+  from v3"), because a problem this version introduced and one that has survived four attempts are
+  not the same news.
+
+  If part of the version could not be read, the answer says so under its own heading instead of
+  coming back shorter. An agent told "nothing is outstanding" by a list that quietly failed to load
+  the simulation results is worse off than one told nothing at all.
+
+### Changed
+
+- **Requirements print the verdict, not the status.** A row used to read `[unmet]` with no more to
+  it. It now reads which check answered, what it said and why — `fails`, `passes`, `no_gap_found`,
+  `not_checked`, `not_checkable` — with the reason the check gave and, for the model check, the
+  model that gave it. `cited by nothing` is stated separately, because "nothing in the design
+  claims to address this" is a different fact from any verdict about whether it holds. The four
+  status words (`unmet`, `uncited`, `unchecked`, `cited`) are no longer printed; a server that
+  predates the verdict still sends them, and its word is used rather than leaving the row blank.
+- **`get_design(mode: "readiness")` stops filing "accept" rows under advisory checks.** An
+  assumption the design made, or a decision waiting to be written down, is something a person
+  agrees to. The old heading said those "never block, and some need a paid plan to clear" — wrong
+  twice: accepting is free, and no check failed. They have their own heading now, and the readiness
+  answer points at `mode: "todo"` for the same work item by item.
+- **`generate_architecture` says what it actually asks for.** Its description promised clarifying
+  questions only for a prompt that "names no system at all". A prompt that names a system but no
+  scale is asked too — how many users, how many requests — because a design built on an invented
+  scale is sized, priced and judged against a number nobody chose. There is no flag to skip the
+  questions, and the description now says so rather than leaving an agent to discover it.
+- **Design gaps carry their problem key.** `gap:{id}`, the same identity the review, the advisor
+  and the decision suggestions share, so a caller can tell that a question and a finding are about
+  one thing.
+
 ## [0.2.1] — 2026-09-19
 
 ### Fixed

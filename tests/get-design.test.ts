@@ -405,8 +405,8 @@ describe('the requirements a design was built from', () => {
             await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'db' }),
         )
 
-        expect(overviewText).toContain('- R2 [unmet] Every write to a link is recorded in an audit trail.')
-        expect(componentText).toContain('- R2 [unmet] Every write to a link is recorded in an audit trail.')
+        expect(overviewText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)')
+        expect(componentText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)')
         const listed = api.calls.find((call) => call.url.includes('/architectures?'))
         expect(listed).toBeDefined()
         expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V2}`))).toHaveLength(1)
@@ -419,10 +419,10 @@ describe('the requirements a design was built from', () => {
 
         expect(text(result)).toContain(
             [
-                'Requirements — 3 total; 1 unmet, 1 uncited:',
-                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
-                '- R3 [uncited] The service stays available when one region is lost.',
-                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                'Requirements — 3 total; 1 failing, 1 cited by nothing:',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
             ].join('\n'),
         )
     })
@@ -432,11 +432,13 @@ describe('the requirements a design was built from', () => {
 
         const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
 
-        // `unmet` and `uncited` are the two statuses that ask the agent to do something, so they
-        // come first; R-number order survives inside each group. The rows arrive R1, R2, R3, so a
-        // renderer that does no grouping at all fails this and passes a looser assertion.
-        expect(body.indexOf('- R2 [unmet]')).toBeLessThan(body.indexOf('- R3 [uncited]'))
-        expect(body.indexOf('- R3 [uncited]')).toBeLessThan(body.indexOf('- R1 [cited]'))
+        // A failing verdict and a requirement nothing cites are the two that ask the agent to do
+        // something, so they come first; R-number order survives inside each group. The rows arrive
+        // R1, R2, R3, so a renderer that does no grouping at all fails this and passes a looser one.
+        expect(body.indexOf('- R2 [fails]')).toBeLessThan(body.indexOf('- R3 [no_gap_found · cited by nothing]'))
+        expect(body.indexOf('- R3 [no_gap_found · cited by nothing]')).toBeLessThan(
+            body.indexOf('- R1 [no_gap_found]'),
+        )
         // The strongest thing the product knows about a requirement is that something in the design
         // cites it and no check flagged a gap. "Met" and "satisfied" claim the other thing, and an
         // agent told a requirement is met stops looking at it.
@@ -444,13 +446,16 @@ describe('the requirements a design was built from', () => {
         expect(body).not.toMatch(/\bsatisfied\b/)
     })
 
-    it('says what the statuses mean, once', async () => {
+    it('says what the verdicts mean, once', async () => {
         await withLedger()
 
         const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
 
-        expect(body).toMatch(/`cited` — cited with no gap found, which is not the same as proven/)
-        expect(body.match(/the verifier judged the design does not satisfy it/g)).toHaveLength(1)
+        expect(body).toMatch(/`no_gap_found` — nothing\ncontradicted it, which is not the same as proven/)
+        expect(body.match(/a named check measured the design as not meeting it/g)).toHaveLength(1)
+        // The four status words are what 0.3.0 dropped. A row that still printed one would be
+        // handing the agent a summary of the verdict beside the verdict it summarises.
+        expect(body).not.toMatch(/\[unmet\]|\[uncited\]|\[unchecked\]|\[cited\]/)
     })
 
     it('carries the ledger into the structured half verbatim', async () => {
@@ -486,13 +491,17 @@ describe('the requirements a design was built from', () => {
         await withLedger({
             ...LEDGER,
             verification_state: 'partial',
-            rows: LEDGER.rows.map((row) => (row.id === 'R1' ? { ...row, status: 'unchecked', verifier_checked: false } : row)),
+            rows: LEDGER.rows.map((row) =>
+                row.id === 'R1'
+                    ? { ...row, status: 'unchecked', verdict: 'not_checked', verdict_reason: null, verifier_checked: false }
+                    : row,
+            ),
         })
 
         const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
 
-        expect(body).toMatch(/Requirements — 3 total; 1 unmet, 1 uncited, 1 unchecked:/)
-        expect(body).toMatch(/- R1 \[unchecked\] A shortened link resolves/)
+        expect(body).toMatch(/Requirements — 3 total; 1 failing, 1 cited by nothing, 1 unchecked:/)
+        expect(body).toMatch(/- R1 \[not_checked\] A shortened link resolves/)
         expect(body).toMatch(/did not check every requirement in this set/)
         expect(body).toMatch(/neither confirmed nor flagged/)
     })
@@ -503,7 +512,9 @@ describe('the requirements a design was built from', () => {
             verification_state: 'not_run',
             verified_version: null,
             rows: LEDGER.rows.map((row) =>
-                row.status === 'uncited' ? row : { ...row, status: 'unchecked', verifier_checked: false },
+                row.status === 'uncited'
+                    ? row
+                    : { ...row, status: 'unchecked', verdict: 'not_checked', verdict_reason: null, checked_by: null, verifier_checked: false },
             ),
         })
 
@@ -514,11 +525,11 @@ describe('the requirements a design was built from', () => {
         // and it says which — so the sentence is different, and neither is invented when it is silent.
         expect(body).toBe(
             overviewWith([
-                'Requirements — 3 total; 1 uncited, 2 unchecked:',
-                '- R3 [uncited] The service stays available when one region is lost.',
-                '- R1 [unchecked] A shortened link resolves in under 50 ms at the 99th percentile.',
-                '- R2 [unchecked] Every write to a link is recorded in an audit trail.',
-                ...STATUS_LEGEND,
+                'Requirements — 3 total; 1 cited by nothing, 2 unchecked:',
+                '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
+                '- R1 [not_checked] A shortened link resolves in under 50 ms at the 99th percentile.',
+                '- R2 [not_checked] Every write to a link is recorded in an audit trail.',
+                ...VERDICT_LEGEND,
                 'The verifier did not run on this version, so an `unchecked` row is neither confirmed',
                 'nor flagged.',
             ]),
@@ -535,11 +546,11 @@ describe('the requirements a design was built from', () => {
         // agent that reads the list as complete builds to a brief that is short of lines.
         expect(body).toBe(
             overviewWith([
-                'Requirements — 3 total; 1 unmet, 1 uncited:',
-                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
-                '- R3 [uncited] The service stays available when one region is lost.',
-                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
-                ...STATUS_LEGEND,
+                'Requirements — 3 total; 1 failing, 1 cited by nothing:',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
+                ...VERDICT_LEGEND,
                 'The requirements analysis for this version ran degraded. Treat the list as incomplete.',
             ]),
         )
@@ -556,16 +567,16 @@ describe('the requirements a design was built from', () => {
 
         expect(body).toBe(
             overviewWith([
-                'Requirements — 3 total; 1 unmet, 1 uncited:',
-                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
-                '- R3 [uncited] The service stays available when one region is lost.',
-                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
-                ...STATUS_LEGEND,
+                'Requirements — 3 total; 1 failing, 1 cited by nothing:',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
+                ...VERDICT_LEGEND,
             ]),
         )
     })
 
-    it('sorts a status it does not know last, and prints it as the server sent it', async () => {
+    it('sorts a verdict it does not know last, and prints it as the server sent it', async () => {
         await withLedger({
             ...LEDGER,
             rows: [
@@ -576,8 +587,12 @@ describe('the requirements a design was built from', () => {
                     kind: 'functional',
                     source: 'user_supplied',
                     status: 'waived',
+                    verdict: 'waived',
+                    check_method: null,
+                    verdict_reason: null,
+                    checked_by: null,
                     verifier_checked: false,
-                    cited_by_components: [],
+                    cited_by_components: ['db'],
                     cited_by_decisions: [],
                     added_in_version: 2,
                 },
@@ -586,19 +601,20 @@ describe('the requirements a design was built from', () => {
 
         const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
 
-        // `status` is a string so that a word added server-side reaches the agent instead of stopping
-        // an older connector from parsing the row. That leniency has to end in the rendering too: a
-        // status nobody here has heard of sorts below `cited` and keeps its own word, because folding
-        // it in with the recognised ones would turn an unknown into a false all-clear. It is also not
-        // counted in the heading — a count is a claim about statuses this package can explain.
+        // `verdict` is a string so that a word added server-side reaches the agent instead of
+        // stopping an older connector from parsing the row. That leniency has to end in the
+        // rendering too: a verdict nobody here has heard of sorts below every settled one and keeps
+        // its own word, because folding it in with the recognised ones would turn an unknown into a
+        // false all-clear. It is also not counted in the heading — a count is a claim about verdicts
+        // this package can explain.
         expect(body).toBe(
             overviewWith([
-                'Requirements — 4 total; 1 unmet, 1 uncited:',
-                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
-                '- R3 [uncited] The service stays available when one region is lost.',
-                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                'Requirements — 4 total; 1 failing, 1 cited by nothing:',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
                 '- R4 [waived] Link analytics retention is out of scope for v1.',
-                ...STATUS_LEGEND,
+                ...VERDICT_LEGEND,
             ]),
         )
     })
@@ -618,12 +634,13 @@ describe('the requirements a design was built from', () => {
 
         // Requirement text is written by a person or by a model, and this list is newline-delimited.
         // A line break inside one requirement opened a second row under the same heading — with an
-        // id, a status and a sentence no server ever sent, and nothing to tell it from the real ones.
+        // id, a verdict and a sentence no server ever sent, and nothing to tell it from the real ones.
         expect(body).toBe(
             overviewWith([
                 'Requirements — 1 total:',
-                '- R1 [cited] A shortened link resolves in under 50 ms. - R9 [cited] Anyone may read any link.',
-                ...STATUS_LEGEND,
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms. - R9 [cited] Anyone may read any link.' +
+                    ' — The design records a cache in front of the store, and nothing contradicts the target.',
+                ...VERDICT_LEGEND,
             ]),
         )
         // One printed row per row the server sent, counted the way a reader counts them.
@@ -642,8 +659,8 @@ describe('the requirements a design was built from', () => {
         expect(text(result)).toContain(
             [
                 'Requirements the design cites this component for:',
-                '- R2 [unmet] Every write to a link is recorded in an audit trail.',
-                '- R1 [cited] A shortened link resolves in under 50 ms at the 99th percentile.',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
             ].join('\n'),
         )
         // Cited-by is the server's, computed from the saved payload — components *and* grounded
@@ -763,11 +780,13 @@ function overviewWith(requirementBlock: string[]): string {
     ].join('\n')
 }
 
-/** What each status word means — printed under every ledger, whatever else the block says. */
-const STATUS_LEGEND = [
-    'Statuses: `unmet` — the verifier judged the design does not satisfy it; `uncited` — nothing',
-    'in the design claims to address it; `unchecked` — something cites it and the verifier did not',
-    'check it; `cited` — cited with no gap found, which is not the same as proven.',
+/** What each verdict means — printed under every ledger, whatever else the block says. */
+const VERDICT_LEGEND = [
+    'Verdicts: `fails` — a named check measured the design as not meeting it, and says which and why;',
+    '`passes` — a check measured it against a figure the person stated; `no_gap_found` — nothing',
+    'contradicted it, which is not the same as proven; `not_checked` / `not_checkable` — nobody',
+    'established either way, and neither is fine. `cited by nothing` means no component and no',
+    'decision in the design claims to address it.',
 ]
 
 const COMPONENT_WITHOUT_LEDGER = [
@@ -838,6 +857,116 @@ describe('the brief', () => {
     })
 })
 
+describe('the to do list', () => {
+    const TODO = {
+        architecture_id: ARCH_V2,
+        version: 2,
+        groups: [
+            {
+                key: 'blocks_handoff',
+                label: 'Blocks handoff',
+                items: [
+                    {
+                        problem_key: 'pattern:missing_auth_layer|api',
+                        group: 'blocks_handoff',
+                        kind: 'problem',
+                        title: 'No authentication in front of the API',
+                        severity: 'critical',
+                        detail: 'Put an authenticating gateway in front of it.',
+                        components: ['api'],
+                        sources: [
+                            { source: 'critique', message: 'No authentication in front of the API' },
+                            { source: 'advisor', message: 'Add an auth layer', reference_id: 'sug-1' },
+                            { source: 'decisions', message: 'Record: we accept an unauthenticated API', reference_id: 'cand-1' },
+                        ],
+                        actions: [{ action: 'apply', available: true, reference_id: 'sug-1' }],
+                        carried: true,
+                        carried_from_version: 1,
+                    },
+                ],
+                bulk_action: null,
+            },
+            {
+                key: 'recommended',
+                label: 'Recommended',
+                items: [
+                    {
+                        problem_key: 'sim:capacity|db',
+                        group: 'recommended',
+                        kind: 'problem',
+                        title: 'Links Database exceeds capacity at current load',
+                        severity: 'high',
+                        components: ['db'],
+                        sources: [{ source: 'advisor', message: 'Add read replicas', reference_id: 'sug-2' }],
+                        actions: [{ action: 'apply', available: false, reason: 'Wait for the current design to finish' }],
+                        carried: true,
+                        carried_from_version: null,
+                    },
+                ],
+                bulk_action: null,
+            },
+            { key: 'accept', label: 'Accept these', items: [], bulk_action: null },
+        ],
+        dismissed: [],
+        counts: { blocks_handoff: 1, recommended: 1, accept: 0, dismissed: 0, total: 2 },
+        raw_row_count: 4,
+        unavailable_sources: [],
+        generation_running: false,
+        can_edit: true,
+    }
+
+    it('shows one entry per problem, naming every surface that raised it', async () => {
+        await open([{ match: `GET /api/v1/architectures/${ARCH_V2}/todo`, body: TODO }])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'todo' }))
+
+        // The whole reason this endpoint exists: the review, the advisor and a pending decision
+        // describe one problem three times, and an agent reading three panels cannot tell that
+        // fixing one thing clears all three.
+        expect(body).toMatch(/2 thing\(s\) still to do on this version, 1 of which block a handoff:/)
+        expect(body).toMatch(/Blocks handoff \(1\):/)
+        expect(body).toMatch(/raised by critique, advisor, decisions/)
+        expect(body).toMatch(/affects api/)
+        expect(body.match(/No authentication in front of the API/g)).toHaveLength(1)
+    })
+
+    it('says how far back a problem goes, and says so vaguely when it cannot say exactly', async () => {
+        await open([{ match: `GET /api/v1/architectures/${ARCH_V2}/todo`, body: TODO }])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'todo' }))
+
+        // A problem this version introduced and one that has survived every attempt so far are not
+        // the same news. Where the server looked back as far as it goes, it names the version;
+        // where the origin is older than it looked, it says that rather than naming version zero.
+        expect(body).toMatch(/carried from v1/)
+        expect(body).toMatch(/carried from an earlier version/)
+    })
+
+    it('says a source could not be read rather than coming back shorter', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/todo`,
+                body: {
+                    ...TODO,
+                    groups: TODO.groups.map((group) => ({ ...group, items: [] })),
+                    counts: { blocks_handoff: 0, recommended: 0, accept: 0, dismissed: 0, total: 0 },
+                    unavailable_sources: [
+                        { source: 'simulation', reason: "This version's simulation and cost results could not be read" },
+                    ],
+                },
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'todo' }))
+
+        // "Nothing is outstanding" from a list that half failed to load is the worst answer this
+        // surface can give: the agent acts on it, and nothing anywhere says it was incomplete.
+        expect(body).toMatch(/Nothing is outstanding on this version\./)
+        expect(body).toMatch(/the list above is incomplete/)
+        expect(body).toMatch(/- simulation: This version's simulation and cost results could not be read/)
+    })
+})
+
 describe('readiness and gaps', () => {
     it('separates the gates from the advisories and says only a person clears a gate', async () => {
         await open([
@@ -871,6 +1000,34 @@ describe('readiness and gaps', () => {
         const [gateBlock, advisoryBlock] = text(result).split('Advisory checks')
         expect(gateBlock).not.toMatch(/Decisions still proposed/)
         expect(advisoryBlock).not.toMatch(/Decisions still proposed/)
+    })
+
+    it('files an accept row under accepting, not under checks that need a paid plan', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    verdict: 'ready',
+                    rows: [
+                        { key: 'assumptions', label: 'Assumptions to accept', count: 3, state: 'attention', category: 'accept', gating: false },
+                        { key: 'fitness_failures', label: 'Fitness rules failing', count: 0, state: 'clear', category: 'advisory', gating: false },
+                    ],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+
+        // Accepting is free and nothing failed. Printing an assumption under "some need a paid plan
+        // to clear" told an agent both of the opposite things.
+        const [acceptBlock, advisoryBlock] = body.split('Advisory checks')
+        expect(acceptBlock).toMatch(/To accept \(the person agrees to these rather than fixing them/)
+        expect(acceptBlock).toMatch(/Assumptions to accept: 3/)
+        expect(advisoryBlock).not.toMatch(/Assumptions to accept/)
     })
 
     it('reports an unchecked row as unchecked, never as a zero', async () => {

@@ -321,6 +321,9 @@ export const DesignGapSchema = z.looseObject({
     action: z.string().nullable().optional(),
     note: z.string().nullable().optional(),
     adr_id: z.string().nullable().optional(),
+    /** `gap:{gap_id}` — the identity the review, the advisor and the decision suggestions share,
+     * and the key a dismissal is recorded against. Absent from servers before 0.3.0. */
+    problem_key: z.string().optional(),
 })
 
 /**
@@ -348,6 +351,85 @@ export const DesignGapListSchema = z.looseObject({
     unresolved_count: z.number(),
     /** Answers whose question is not in this version — recorded, not silently dropped. */
     orphaned_answers: z.array(OrphanedAnswerSchema).optional(),
+})
+
+// ─── To do ───────────────────────────────────────────────────────────
+
+/**
+ * One raising of a problem, and the words that surface used for it.
+ *
+ * The reason the list is grouped at all: the review, the advisor and a pending decision routinely
+ * describe one problem three times, and before the server grouped them an agent reading the three
+ * panels had no way to see that fixing one thing cleared all three rows.
+ */
+export const TodoSourceSchema = z.looseObject({
+    source: z.string(),
+    message: z.string(),
+    detail: z.string().nullable().optional(),
+    /** A handle to act on through that source: a suggestion id, a gap id, an R-id. */
+    reference_id: z.string().nullable().optional(),
+})
+
+/**
+ * Something the person can do about a card, and whether they can do it right now.
+ *
+ * An action the server would refuse outright for this reader is absent rather than disabled, so a
+ * listed action with `available: false` is always temporary or purchasable, and `reason` says which.
+ */
+export const TodoActionSchema = z.looseObject({
+    action: z.string(),
+    available: z.boolean(),
+    reason: z.string().nullable().optional(),
+    reference_id: z.string().nullable().optional(),
+})
+
+export const TodoItemSchema = z.looseObject({
+    problem_key: z.string(),
+    group: z.string(),
+    /** `problem` | `question` | `assumption` | `decision` | `verdict`. A string, not a union: a
+     * value added server-side must not stop an older connector parsing the card. */
+    kind: z.string(),
+    title: z.string(),
+    severity: z.string(),
+    detail: z.string().nullable().optional(),
+    components: z.array(z.string()).optional(),
+    sources: z.array(TodoSourceSchema).optional(),
+    actions: z.array(TodoActionSchema).optional(),
+    carried: z.boolean().optional(),
+    /** The oldest earlier version known to have had this problem. Null with `carried: true` means
+     * it goes back further than the server looked — "an earlier version", never version zero. */
+    carried_from_version: z.number().nullable().optional(),
+    dismissed: z.boolean().optional(),
+    dismissed_reason: z.string().nullable().optional(),
+})
+export type TodoItem = z.infer<typeof TodoItemSchema>
+
+export const TodoGroupSchema = z.looseObject({
+    key: z.string(),
+    label: z.string(),
+    items: z.array(TodoItemSchema),
+    bulk_action: TodoActionSchema.nullable().optional(),
+})
+export type TodoGroup = z.infer<typeof TodoGroupSchema>
+
+/** A source the server could not read for this version, named rather than silently dropped. */
+export const UnavailableSourceSchema = z.looseObject({
+    source: z.string(),
+    reason: z.string(),
+})
+
+export const TodoSchema = z.looseObject({
+    architecture_id: z.string(),
+    version: z.number(),
+    groups: z.array(TodoGroupSchema),
+    dismissed: z.array(TodoItemSchema).optional(),
+    counts: z.record(z.string(), z.number()).optional(),
+    /** Rows the sources raised before grouping. The gap between this and `counts.total` is the
+     * duplication the endpoint removes, reported so the claim stays checkable. */
+    raw_row_count: z.number().optional(),
+    unavailable_sources: z.array(UnavailableSourceSchema).optional(),
+    generation_running: z.boolean().optional(),
+    can_edit: z.boolean().optional(),
 })
 
 export const ComponentRefSchema = z.looseObject({

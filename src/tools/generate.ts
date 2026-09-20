@@ -244,8 +244,11 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
                 'and takes several minutes, so do not call it speculatively — if a design already exists, ' +
                 'read it with get_design instead. Which model runs it is the account holder\'s stored ' +
                 'setting; you do not choose it. Describe the system, what it must do, and the scale and ' +
-                'constraints it runs under: whatever the prompt leaves out is assumed, and a prompt that ' +
-                'names no system at all comes back as clarification_required with the questions to answer.',
+                'constraints it runs under. A prompt that names no system to design comes back as ' +
+                'clarification_required, and so does one that names a system but no scale to build it ' +
+                'for — how many users or requests it has to serve. Answer with clarification_answers; ' +
+                'there is no way to skip the questions, because a design built on an invented scale is ' +
+                'sized, priced and judged against a number nobody chose.',
             inputSchema: generateInput,
             outputSchema: generateOutput,
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -420,7 +423,8 @@ function clarificationResult(questions: ClarifyingQuestion[]) {
     }))
 
     const lines = [
-        'SkeletIQ will not design from this prompt yet — it names no system to design. ' +
+        'SkeletIQ will not design from this prompt yet — it is missing something the design would ' +
+            'otherwise have to invent, such as the system itself or the scale it runs at. ' +
             'Nothing was generated and nothing was charged.',
         '',
         ...structured.flatMap((question) => [

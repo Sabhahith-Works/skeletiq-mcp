@@ -782,6 +782,12 @@
           "nullable": true,
           "item": null
         },
+        "problem_key": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "resolved": {
           "required": true,
           "kind": "scalar",
@@ -1609,6 +1615,276 @@
           "required": false,
           "kind": "scalar",
           "nullable": true,
+          "item": null
+        }
+      }
+    },
+    "TodoActionSchema": {
+      "python_model": "app.schemas.handoff.TodoActionResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.groups[].items[].actions"
+      ],
+      "fields": {
+        "action": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "available": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "reason": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "reference_id": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        }
+      }
+    },
+    "TodoGroupSchema": {
+      "python_model": "app.schemas.handoff.TodoGroupResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.groups"
+      ],
+      "fields": {
+        "bulk_action": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "TodoActionResponse"
+        },
+        "items": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "TodoItemResponse"
+        },
+        "key": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "label": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "TodoItemSchema": {
+      "python_model": "app.schemas.handoff.TodoItemResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.groups[].items"
+      ],
+      "fields": {
+        "actions": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "TodoActionResponse"
+        },
+        "carried": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "carried_from_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "components": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "detail": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "dismissed": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "dismissed_reason": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "group": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "kind": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "problem_key": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "severity": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "sources": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "TodoSourceResponse"
+        },
+        "title": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "TodoSchema": {
+      "python_model": "app.schemas.handoff.TodoResponse",
+      "authority": "response_model",
+      "endpoints": [
+        "GET /architectures/{architecture_id}/todo"
+      ],
+      "fields": {
+        "architecture_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "can_edit": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "counts": {
+          "required": true,
+          "kind": "map",
+          "nullable": false,
+          "item": null
+        },
+        "dismissed": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "TodoItemResponse"
+        },
+        "generation_running": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "groups": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "TodoGroupResponse"
+        },
+        "raw_row_count": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "unavailable_sources": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "UnavailableSourceResponse"
+        },
+        "version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "TodoSourceSchema": {
+      "python_model": "app.schemas.handoff.TodoSourceResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.groups[].items[].sources"
+      ],
+      "fields": {
+        "detail": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "message": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "reference_id": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "source": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "UnavailableSourceSchema": {
+      "python_model": "app.schemas.handoff.UnavailableSourceResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.unavailable_sources"
+      ],
+      "fields": {
+        "reason": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "source": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
           "item": null
         }
       }

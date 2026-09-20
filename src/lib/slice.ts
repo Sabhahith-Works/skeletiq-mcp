@@ -89,25 +89,41 @@ function citedRequirements(ledger: RequirementLedger, componentId: string): Requ
 }
 
 /**
- * `unmet` and `uncited` first: those are the two that ask the reader to do something.
+ * What needs doing first: a check said the design does not meet it, then nothing cites it, then
+ * nobody checked. Those are the three that ask the reader to do something.
+ *
+ * Ordered on `verdict` since 0.3.0, which is what the row is actually printed with. A server that
+ * predates the verdict still sends `status`, and its word is ranked through the same table — the
+ * two vocabularies rank to the same three tiers, so an older server sorts exactly as it always did.
  *
  * Inside a group the server's own order is kept, which is R-number order — a stable sort gives that
  * for free, and re-deriving the number from the id would mean guessing at a format the server owns.
  *
- * A status this package does not recognise sorts last and is printed as it arrived. `status` is
+ * A value this package does not recognise sorts last and is printed as it arrived. `verdict` is
  * typed as a string precisely so a value added server-side does not stop an older connector parsing
- * the row; folding an unrecognised one in with `cited` would turn that leniency into a false
- * all-clear.
+ * the row; folding an unrecognised one in with the settled ones would turn that leniency into a
+ * false all-clear.
  */
-const STATUS_ORDER = ['unmet', 'uncited', 'unchecked', 'cited']
+const VERDICT_ORDER = ['fails', 'unmet', 'not_checked', 'not_checkable', 'unchecked', 'no_gap_found', 'passes', 'cited']
 
-export function orderRequirementRows(rows: RequirementLedgerRow[]): RequirementLedgerRow[] {
-    return [...rows].sort((a, b) => statusRank(a) - statusRank(b))
+/** Whether anything in the design — a component or a decision — claims to address this row. */
+export function isCitedRequirement(row: RequirementLedgerRow): boolean {
+    return (row.cited_by_components?.length ?? 0) > 0 || (row.cited_by_decisions?.length ?? 0) > 0
 }
 
-function statusRank(row: RequirementLedgerRow): number {
-    const index = STATUS_ORDER.indexOf(row.status ?? '')
-    return index === -1 ? STATUS_ORDER.length : index
+export function orderRequirementRows(rows: RequirementLedgerRow[]): RequirementLedgerRow[] {
+    return [...rows].sort((a, b) => verdictRank(a) - verdictRank(b))
+}
+
+function verdictRank(row: RequirementLedgerRow): number {
+    const verdict = (row.verdict ?? row.status ?? '').trim()
+    if (verdict === 'fails' || verdict === 'unmet') return 0
+    // Ranked here rather than in the table: "nothing cites it" is not a verdict, and since 0.3.0
+    // it is read off the citations instead of borrowing the `uncited` status word. It still sorts
+    // second — a requirement nothing claims to address is the next thing worth looking at.
+    if (!isCitedRequirement(row)) return 1
+    const index = VERDICT_ORDER.indexOf(verdict)
+    return index === -1 ? VERDICT_ORDER.length + 1 : index + 2
 }
 
 /**
