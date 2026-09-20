@@ -149,6 +149,19 @@ export const RequirementLedgerRowSchema = z.looseObject({
      * value added server-side must not stop an older connector parsing the row. */
     status: z.string().optional(),
     verifier_checked: z.boolean().optional(),
+    /** Which check answered this line: `simulation` | `cost` | `rules` | `structure` | `verifier`.
+     * Four are deterministic; `verifier` is the model check, and it only owns a row when it gave a
+     * reason. A string rather than a union, for the reason `status` is one. Absent from older APIs. */
+    check_method: z.string().nullable().optional(),
+    /** What that check said: `fails` | `passes` | `no_gap_found` | `not_checkable` | `not_checked`.
+     * `passes` is only ever a measurement; `no_gap_found` is the weaker "nothing contradicted it".
+     * Reported beside `status`, which stays populated. Absent from older APIs. */
+    verdict: z.string().nullable().optional(),
+    /** Why, in one sentence, with the figure or the finding behind it. */
+    verdict_reason: z.string().nullable().optional(),
+    /** The model behind a `verifier` verdict. Null on every deterministic row — naming a model
+     * beside a number the server computed would be a false attribution. */
+    checked_by: z.string().nullable().optional(),
     cited_by_components: z.array(z.string()).nullable().optional(),
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),
@@ -170,6 +183,13 @@ export const RequirementLedgerCountsSchema = z.looseObject({
     cited: z.number().optional(),
     /** Rows citing no component and no decision (overlaps `unmet`). Absent from older APIs. */
     untraced: z.number().optional(),
+    /** The verdict partition, which sums to `total` exactly as the status partition above does —
+     * two readings of one set of rows, not two sets. Absent from older APIs. */
+    fails: z.number().optional(),
+    passes: z.number().optional(),
+    no_gap_found: z.number().optional(),
+    not_checkable: z.number().optional(),
+    not_checked: z.number().optional(),
 })
 export type RequirementLedgerCounts = z.infer<typeof RequirementLedgerCountsSchema>
 

@@ -1383,7 +1383,37 @@
           "nullable": false,
           "item": null
         },
+        "fails": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "llm_inferred": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "no_gap_found": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "not_checkable": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "not_checked": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "passes": {
           "required": false,
           "kind": "scalar",
           "nullable": false,
@@ -1435,6 +1465,18 @@
       ],
       "fields": {
         "added_in_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "check_method": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "checked_by": {
           "required": false,
           "kind": "scalar",
           "nullable": true,
@@ -1492,6 +1534,18 @@
           "required": true,
           "kind": "scalar",
           "nullable": false,
+          "item": null
+        },
+        "verdict": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "verdict_reason": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
           "item": null
         },
         "verifier_checked": {
