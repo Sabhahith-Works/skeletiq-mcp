@@ -131,16 +131,22 @@ const constraintsInput = z.strictObject({
     read_write_mix: z
         .enum(['read_heavy', 'balanced', 'write_heavy'])
         .optional()
-        // Honest about how little it does today: the capacity model applies the mix only to a
-        // cache in front of a database, so on a design without that edge it changes no number.
+        // Both halves of the old wording stopped being true. The server now reads a share stated
+        // in the prompt ("roughly 5% reads and 95% writes"), and the resulting read fraction
+        // reaches component sizing and the read-replica capacity weighting, not just a cache in
+        // front of a database.
         .describe(
-            'Nothing reads this from the prompt. Unset, the design assumes 80% reads. Today it only ' +
-                'changes sizing where a cache sits in front of a database; elsewhere it has no effect.',
+            'Wins over any share stated in the prompt, which the server also reads. Unset and ' +
+                'unstated, the design assumes 80% reads. It sizes components and weights read ' +
+                'replicas, so on a read-heavy design it changes the instance counts and the cost.',
         ),
     burstiness: z
         .enum(['steady', 'daily_peaks', 'spiky'])
         .optional()
-        .describe('Nothing reads this from the prompt. Unset, the design assumes the tier default peak.'),
+        .describe(
+            'Wins over a peak the prompt states ("peaking at 2,000 per second"), which the server ' +
+                'also reads. Unset and unstated, the design assumes the tier default peak.',
+        ),
     data_retention: z.enum(['days', 'months', 'years', 'indefinite']).optional(),
     consistency: z.enum(['strict', 'eventual', 'mixed']).optional(),
     data_residency: z.enum(['any', 'us', 'eu']).optional(),

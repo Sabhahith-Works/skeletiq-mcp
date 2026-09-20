@@ -56,6 +56,13 @@ of the verdict it was a summary of.
 - **Design gaps carry their problem key.** `gap:{id}`, the same identity the review, the advisor
   and the decision suggestions share, so a caller can tell that a question and a finding are about
   one thing.
+- **`read_write_mix` and `burstiness` stop saying the prompt is ignored.** Both described themselves
+  as fields nothing reads from the prompt, and `read_write_mix` added that it changed sizing only
+  where a cache sits in front of a database. Neither is true any more: a read/write share written
+  in the brief ("roughly 5% reads and 95% writes") is read and used, a stated peak ("peaking at
+  2,000 per second") sets how peaky the traffic is, and the resulting read fraction now sizes
+  components and weights read replicas — so on a read-heavy design it moves the instance counts and
+  the cost. The fields still win over what the prompt says, and the descriptions say that instead.
 
 ## [0.2.1] — 2026-09-19
 
