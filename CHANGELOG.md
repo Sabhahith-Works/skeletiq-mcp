@@ -28,6 +28,12 @@ of the verdict it was a summary of.
   coming back shorter. An agent told "nothing is outstanding" by a list that quietly failed to load
   the simulation results is worse off than one told nothing at all.
 
+  Each source on an entry carries what it raised, in the structured result beside the summary: a
+  review finding arrives whole — the evidence, the fix, the precedent, the references and the
+  confidence behind it, the same shape `critique_architecture` returns — and a pending decision
+  arrives as the record it is asking to write, including whether the design already made that call
+  or has not made it yet. Reading a problem should not need a second call to find out why it is one.
+
 ### Changed
 
 - **Requirements print the verdict, not the status.** A row used to read `[unmet]` with no more to

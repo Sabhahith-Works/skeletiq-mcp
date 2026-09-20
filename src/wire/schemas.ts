@@ -353,7 +353,64 @@ export const DesignGapListSchema = z.looseObject({
     orphaned_answers: z.array(OrphanedAnswerSchema).optional(),
 })
 
+// ─── Critique ────────────────────────────────────────────────────────
+
+export const CritiqueFindingSchema = z.looseObject({
+    message: z.string(),
+    pattern_id: z.string(),
+    category: z.string(),
+    severity: z.string().optional(),
+    affected_components: z.array(z.string()).optional(),
+    evidence: z.string().optional(),
+    remediation: z.string().optional(),
+    /** Reported in full and never charged against the score — advice, not a problem to fix. */
+    advisory_only: z.boolean().optional(),
+    /**
+     * The problem this finding is about. Stable across rewording, and shared with the advisor
+     * suggestion and decision record raised by the same problem — the key a dismissal is recorded
+     * against.
+     */
+    problem_key: z.string().optional(),
+    /** The project set this problem aside, with a reason. Still reported; never set on an unsaved payload. */
+    dismissed: z.boolean().optional(),
+})
+
+export const PayloadCritiqueSchema = z.looseObject({
+    architecture_score: z.number(),
+    security_score: z.number(),
+    performance_score: z.number(),
+    resilience_score: z.number(),
+    data_score: z.number(),
+    findings: z.array(CritiqueFindingSchema),
+    bottlenecks: z.array(z.string()).optional(),
+    risks: z.array(z.string()).optional(),
+    recommendations: z.array(z.string()).optional(),
+    strengths: z.array(z.string()).optional(),
+    compliance_assessed: z.boolean().optional(),
+    frameworks_checked: z.array(z.string()).optional(),
+    compliance_note: z.string().nullable().optional(),
+    exposure_assessed: z.string().optional(),
+})
+
 // ─── To do ───────────────────────────────────────────────────────────
+
+/**
+ * The record a pending decision is asking to have written down.
+ *
+ * `disposition` is the part worth reading before anything else. `records` means the saved design
+ * already does this, so the decision is in force and recording it writes down what is true;
+ * `open` means the design has not made that call, so it can only ever become a proposal. An agent
+ * that treats the second as settled is building on a choice nobody made.
+ */
+export const TodoDecisionContextSchema = z.looseObject({
+    context: z.string().nullable().optional(),
+    consequences: z.string().nullable().optional(),
+    alternatives: z.string().nullable().optional(),
+    /** `records` | `open` | `tradeoff`. A string, not a union: a value added server-side must still parse. */
+    disposition: z.string(),
+    supersedes_adr_id: z.string().nullable().optional(),
+    source_version: z.number(),
+})
 
 /**
  * One raising of a problem, and the words that surface used for it.
@@ -361,6 +418,10 @@ export const DesignGapListSchema = z.looseObject({
  * The reason the list is grouped at all: the review, the advisor and a pending decision routinely
  * describe one problem three times, and before the server grouped them an agent reading the three
  * panels had no way to see that fixing one thing cleared all three rows.
+ *
+ * `finding` is the review's own object, carried on the card so the analysis behind a problem —
+ * why it matters, the fix, the precedent, the references — arrives with it instead of needing a
+ * second call. It is the same shape `critique_architecture` returns.
  */
 export const TodoSourceSchema = z.looseObject({
     source: z.string(),
@@ -368,6 +429,10 @@ export const TodoSourceSchema = z.looseObject({
     detail: z.string().nullable().optional(),
     /** A handle to act on through that source: a suggestion id, a gap id, an R-id. */
     reference_id: z.string().nullable().optional(),
+    /** Present on a `critique` or `compliance` source; null on every other kind. */
+    finding: CritiqueFindingSchema.nullable().optional(),
+    /** Present on a `decisions` source; null on every other kind. */
+    decision: TodoDecisionContextSchema.nullable().optional(),
 })
 
 /**
@@ -456,45 +521,6 @@ export const DriftSchema = z.looseObject({
     extra_connections: z.array(z.looseObject({ source: z.string(), target: z.string() })),
     counts: z.record(z.string(), z.number()),
     release: ReleaseFactsSchema,
-})
-
-// ─── Critique ────────────────────────────────────────────────────────
-
-export const CritiqueFindingSchema = z.looseObject({
-    message: z.string(),
-    pattern_id: z.string(),
-    category: z.string(),
-    severity: z.string().optional(),
-    affected_components: z.array(z.string()).optional(),
-    evidence: z.string().optional(),
-    remediation: z.string().optional(),
-    /** Reported in full and never charged against the score — advice, not a problem to fix. */
-    advisory_only: z.boolean().optional(),
-    /**
-     * The problem this finding is about. Stable across rewording, and shared with the advisor
-     * suggestion and decision record raised by the same problem — the key a dismissal is recorded
-     * against.
-     */
-    problem_key: z.string().optional(),
-    /** The project set this problem aside, with a reason. Still reported; never set on an unsaved payload. */
-    dismissed: z.boolean().optional(),
-})
-
-export const PayloadCritiqueSchema = z.looseObject({
-    architecture_score: z.number(),
-    security_score: z.number(),
-    performance_score: z.number(),
-    resilience_score: z.number(),
-    data_score: z.number(),
-    findings: z.array(CritiqueFindingSchema),
-    bottlenecks: z.array(z.string()).optional(),
-    risks: z.array(z.string()).optional(),
-    recommendations: z.array(z.string()).optional(),
-    strengths: z.array(z.string()).optional(),
-    compliance_assessed: z.boolean().optional(),
-    frameworks_checked: z.array(z.string()).optional(),
-    compliance_note: z.string().nullable().optional(),
-    exposure_assessed: z.string().optional(),
 })
 
 // ─── Generation ──────────────────────────────────────────────────────

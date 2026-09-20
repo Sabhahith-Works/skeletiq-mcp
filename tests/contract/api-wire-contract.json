@@ -1658,6 +1658,51 @@
         }
       }
     },
+    "TodoDecisionContextSchema": {
+      "python_model": "app.schemas.handoff.TodoDecisionContextResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in todo.groups[].items[].sources[].decision"
+      ],
+      "fields": {
+        "alternatives": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "consequences": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "context": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "disposition": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "source_version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "supersedes_adr_id": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        }
+      }
+    },
     "TodoGroupSchema": {
       "python_model": "app.schemas.handoff.TodoGroupResponse",
       "authority": "nested",
@@ -1848,11 +1893,23 @@
         "nested in todo.groups[].items[].sources"
       ],
       "fields": {
+        "decision": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "TodoDecisionContextResponse"
+        },
         "detail": {
           "required": false,
           "kind": "scalar",
           "nullable": true,
           "item": null
+        },
+        "finding": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "CritiqueFindingSchema"
         },
         "message": {
           "required": true,
