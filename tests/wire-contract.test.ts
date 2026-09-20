@@ -172,6 +172,14 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         brief_preview: QUESTIONS_AND_NOTHING_ELSE,
         intent_preflight_token: QUESTIONS_AND_NOTHING_ELSE,
     },
+    TodoActionSchema: {
+        modification:
+            "The structured change behind the person's one-click Apply, sent so the app can say " +
+            'what pressing it would do before they press it. `get-design` already tells an agent ' +
+            'that these actions are the person\'s to take, and an agent token reaches no write ' +
+            'route — so mirroring it here would describe a button this connector must never press. ' +
+            'The problem itself, its detail and the parts it affects are all on the card already.',
+    },
 }
 
 /**

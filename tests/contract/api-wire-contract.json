@@ -1638,6 +1638,12 @@
           "nullable": false,
           "item": null
         },
+        "modification": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "ArchitectureModification"
+        },
         "reason": {
           "required": false,
           "kind": "scalar",
