@@ -39,6 +39,18 @@ export interface ComponentSlice {
      * and a caller that cannot tell them apart reports the first as the second.
      */
     cited_requirements?: RequirementLedgerRow[]
+    /**
+     * Rows this component still cites that are **no longer requirements** — a person removed one,
+     * or an older analysis had recorded an instruction as one.
+     *
+     * The component's own `requirement_ids` keep naming them: nothing rewrites a saved design when
+     * a requirement is withdrawn, and nothing should. Without this they would drop out of the
+     * answer in silence, and an agent reading the component's raw `requirement_ids` would be back
+     * to holding a bare `R7` with nowhere to look it up — the exact gap the ledger closed.
+     *
+     * Absent, rather than empty, when the version carries no ledger, for the reason above.
+     */
+    withdrawn_requirements?: RequirementLedgerRow[]
 }
 
 /**
@@ -69,7 +81,12 @@ export function sliceComponent(
         incoming: connections.filter((c) => c.target === component.id),
         related_decisions: related,
         assumed_decisions: assumedAmong(design, related),
-        ...(ledger ? { cited_requirements: citedRequirements(ledger, component.id) } : {}),
+        ...(ledger
+            ? {
+                cited_requirements: citedRequirements(ledger, component.id),
+                withdrawn_requirements: withdrawnRequirements(ledger, component.id),
+            }
+            : {}),
     }
 }
 
@@ -85,6 +102,24 @@ export function sliceComponent(
 function citedRequirements(ledger: RequirementLedger, componentId: string): RequirementLedgerRow[] {
     return orderRequirementRows(
         (ledger.rows ?? []).filter((row) => (row.cited_by_components ?? []).includes(componentId)),
+    )
+}
+
+/**
+ * The ids this component cites that the version no longer holds as requirements.
+ *
+ * Both lists, and kept in one: `removed` is a person saying "that is not a requirement" and
+ * `superseded` is an older analysis having recorded an instruction as one. From this component's
+ * side they are the same fact — the id is on the box and it is not a requirement — and the row
+ * itself carries which. Read off the server's lists for the reason `citedRequirements` gives: the
+ * component's own `requirement_ids` would be a second derivation, free to disagree.
+ *
+ * Not sorted by verdict: these rank on nothing a reader has to act on, and the server's R-order is
+ * the one a person reading the design already has in their head.
+ */
+function withdrawnRequirements(ledger: RequirementLedger, componentId: string): RequirementLedgerRow[] {
+    return [...(ledger.removed ?? []), ...(ledger.superseded ?? [])].filter((row) =>
+        (row.cited_by_components ?? []).includes(componentId),
     )
 }
 

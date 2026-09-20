@@ -170,6 +170,14 @@ export const RequirementLedgerRowSchema = z.looseObject({
      * recorded as a requirement, now the change request it names (`CR5`). Absent from older APIs. */
     superseded_by_change_request: z.string().nullable().optional(),
     superseded_in_version: z.number().nullable().optional(),
+    /** What a person said about this line: `confirmed` ("yes, that one is real") or `removed`
+     * ("that is not a requirement"). Null or absent means nobody has said, which is neither. A
+     * `removed` row is listed under `RequirementLedger.removed` and never in `rows`, so a design
+     * is not held to it; it keeps its id so a citation naming it still resolves. `confirmed`
+     * changes no count and no verdict. Absent from older APIs. */
+    decision: z.string().nullable().optional(),
+    /** The version that was on screen when that decision was recorded. */
+    decided_in_version: z.number().nullable().optional(),
 })
 export type RequirementLedgerRow = z.infer<typeof RequirementLedgerRowSchema>
 
@@ -190,6 +198,12 @@ export const RequirementLedgerCountsSchema = z.looseObject({
     no_gap_found: z.number().optional(),
     not_checkable: z.number().optional(),
     not_checked: z.number().optional(),
+    /** Rows a person has confirmed are real requirements. In no partition — it overlaps all of
+     * them, because confirming a line says nothing about whether the design meets it. */
+    confirmed: z.number().optional(),
+    /** Ids a person said are **not** requirements. Not part of `total`: those rows are not in
+     * `rows` at all. Absent from older APIs. */
+    removed: z.number().optional(),
 })
 export type RequirementLedgerCounts = z.infer<typeof RequirementLedgerCountsSchema>
 
@@ -207,6 +221,11 @@ export const RequirementLedgerSchema = z.looseObject({
     /** Ids that were instructions, not requirements. Counted nowhere; listed so an id a component
      * or decision still cites resolves to what became of it. Absent from older APIs. */
     superseded: z.array(RequirementLedgerRowSchema).nullable().optional(),
+    /** Ids a person said are not requirements, so the design is not held to them. Kept apart from
+     * `superseded` because it is a different statement by a different author. Counted nowhere;
+     * listed for the same reason, so a citation naming one still resolves. Absent from older
+     * APIs. */
+    removed: z.array(RequirementLedgerRowSchema).nullable().optional(),
     analysis_version: z.number().nullable().optional(),
     analysis_degraded: z.boolean().optional(),
     /** `grounded` | `not_grounded` | `diverged`. */

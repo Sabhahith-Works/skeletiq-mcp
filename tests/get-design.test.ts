@@ -672,6 +672,44 @@ describe('the requirements a design was built from', () => {
         expect(text(result)).not.toMatch(/R3/)
     })
 
+    it('names the ids a component cites that are no longer requirements', async () => {
+        await withLedger({
+            ...LEDGER,
+            rows: LEDGER.rows.filter((row) => row.id !== 'R2'),
+            removed: [{ ...LEDGER.rows[1], decision: 'removed', decided_in_version: 2 }],
+            superseded: [
+                {
+                    id: 'R9',
+                    text: 'Remove the Kafka cluster',
+                    cited_by_components: ['db'],
+                    cited_by_decisions: [],
+                    superseded_by_change_request: 'CR2',
+                },
+            ],
+        })
+
+        const result = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'db',
+        })
+
+        // Nothing rewrites a saved design when a requirement is withdrawn, so the component still
+        // carries the id. Dropping the row in silence would put an agent back where the ledger
+        // found it: holding a bare `R2` with nowhere to look it up.
+        expect(text(result)).toContain(
+            [
+                'This component still cites these ids, and they are no longer requirements — do not build to them:',
+                '- R2 Every write to a link is recorded in an audit trail. [removed by a person]',
+                '- R9 Remove the Kafka cluster [was an instruction, now CR2]',
+            ].join('\n'),
+        )
+        // And it is not printed as something to build to.
+        expect(text(result)).not.toContain('- R2 [fails]')
+        const slice = result.structuredContent?.data as { withdrawn_requirements: { id: string }[] }
+        expect(slice.withdrawn_requirements.map((row) => row.id)).toEqual(['R2', 'R9'])
+    })
+
     it('says nothing about requirements on a component the ledger cites for none', async () => {
         await withLedger()
 
@@ -685,8 +723,12 @@ describe('the requirements a design was built from', () => {
         // decision — where silence reads as "this component has no reasoning behind it" and is
         // worth a sentence — a requirement naming other boxes says nothing about this one.
         expect(text(result)).not.toMatch(/Requirements/)
-        const slice = result.structuredContent?.data as { cited_requirements: { id: string }[] }
+        const slice = result.structuredContent?.data as {
+            cited_requirements: { id: string }[]
+            withdrawn_requirements: { id: string }[]
+        }
         expect(slice.cited_requirements).toEqual([])
+        expect(slice.withdrawn_requirements).toEqual([])
     })
 
     it('prints nothing at all about requirements when the version carries no ledger', async () => {
@@ -706,6 +748,7 @@ describe('the requirements a design was built from', () => {
         expect(text(slice)).toBe(COMPONENT_WITHOUT_LEDGER)
         expect(result.structuredContent?.data).not.toHaveProperty('requirement_ledger')
         expect(slice.structuredContent?.data).not.toHaveProperty('cited_requirements')
+        expect(slice.structuredContent?.data).not.toHaveProperty('withdrawn_requirements')
     })
 
     it('treats an explicit null the same way', async () => {

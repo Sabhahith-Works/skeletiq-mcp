@@ -15,6 +15,19 @@ of the verdict it was a summary of.
 
 ### Added
 
+- **Requirements a person has withdrawn are named rather than dropped.** A SkeletIQ design's
+  requirement set is mostly inferred — the analysis writes it from the prompt — and a person can
+  now say of any line either "yes, that is real" or "that is not a requirement". A withdrawn line
+  leaves the requirement list, so nothing is held to it and no verdict is reported against it; a
+  confirmed one reads `Inferred · confirmed` in the brief and the exported report, and changes
+  nothing else.
+
+  Components in a saved design keep citing the ids they were written with, so `mode: "component"`
+  now says when one of them is no longer a requirement, and which way — withdrawn by a person, or
+  an instruction an older analysis had recorded as a requirement. Without that the row would leave
+  the answer in silence and the id on the component would resolve to nothing again, which is the
+  gap the requirement ledger was added to close.
+
 - **`get_design(mode: "todo")`.** Everything still to do on a version, one entry per problem
   whichever part of the product raised it. The review, the advisor and a pending decision routinely
   describe one problem three times; an agent reading them as three separate panels had no way to

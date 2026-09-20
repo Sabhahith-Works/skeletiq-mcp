@@ -179,6 +179,11 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             // Same order as the overview: what was asked for, then how the design
                             // answered.
                             ...requirementsServed(slice.cited_requirements),
+                            // Said only when the design still carries the id. A component's
+                            // `requirement_ids` are never rewritten when a requirement is
+                            // withdrawn, so without this the row would leave the answer in
+                            // silence and the id on the box would resolve to nothing again.
+                            ...requirementsWithdrawn(slice.withdrawn_requirements),
                             // Labelled, and only when there are any. These bullets used to be
                             // printed bare under "Called by:", so a decision about the component
                             // read as a continuation of its edge list — and a design with no
@@ -481,6 +486,28 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
         ...rows.map(requirementLine),
         '`fails` — a named check measured the design as not meeting it; `not_checked` — nobody',
         'established either way; `no_gap_found` — nothing contradicted it, which is not the same as proven.',
+    ]
+}
+
+/**
+ * Ids the component still names that the version no longer holds as requirements.
+ *
+ * Two ways that happens and the row says which: a person read the line and said it is not a
+ * requirement, or an older analysis recorded an instruction ("remove Kafka") as one. Either way
+ * the design is **not** held to it, and the sentence says so rather than leaving an agent to infer
+ * it from a heading — an agent that read these as requirements would build to something the person
+ * has explicitly withdrawn.
+ */
+function requirementsWithdrawn(rows: RequirementLedgerRow[] | undefined): string[] {
+    if (!rows?.length) return []
+    return [
+        '',
+        'This component still cites these ids, and they are no longer requirements — do not build to them:',
+        ...rows.map(
+            (row) =>
+                `- ${row.id} ${(row.text ?? '').replace(/\s+/g, ' ').trim() || '(no text recorded)'}` +
+                ` [${row.decision === 'removed' ? 'removed by a person' : `was an instruction, now ${row.superseded_by_change_request ?? 'a change request'}`}]`,
+        ),
     ]
 }
 
