@@ -115,6 +115,17 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         verification: 'Same rule — the post-generation check, reported to the person in the SPA.',
     },
     ArchitectureSchema: {
+        change_requests:
+            'A record of the conversation: what the turn that produced this version asked for, ' +
+            'and what the diff says became of it. The agent is handed the design that resulted, ' +
+            'which either reflects the instruction or does not — and an instruction the ' +
+            'designer did not carry out is the person’s to re-state, not the builder’s ' +
+            'to infer from.',
+        edge_direction_notice:
+            'A one-time notice that this project’s stored arrows were rewritten to caller → ' +
+            'callee. The connector is never handed the old ones: every read is normalised before it ' +
+            'leaves the API, so the design an agent holds is already in the convention and there is ' +
+            'nothing here for it to act on. It is a message to the person whose diagram changed.',
         critique: REVIEW_OUTPUT,
         critique_depth: REVIEW_OUTPUT,
         compliance: REVIEW_OUTPUT,

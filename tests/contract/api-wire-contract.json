@@ -104,6 +104,12 @@
           "nullable": false,
           "item": null
         },
+        "change_requests": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "ChangeRequestRecord"
+        },
         "compliance": {
           "required": false,
           "kind": "object",
@@ -145,6 +151,12 @@
           "kind": "map",
           "nullable": true,
           "item": null
+        },
+        "edge_direction_notice": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "EdgeDirectionNotice"
         },
         "id": {
           "required": true,
