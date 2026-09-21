@@ -1914,6 +1914,12 @@
           "nullable": false,
           "item": "TodoGroupResponse"
         },
+        "latest_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "raw_row_count": {
           "required": true,
           "kind": "scalar",

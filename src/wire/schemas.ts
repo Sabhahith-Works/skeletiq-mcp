@@ -536,6 +536,9 @@ export const TodoSchema = z.looseObject({
     unavailable_sources: z.array(UnavailableSourceSchema).optional(),
     generation_running: z.boolean().optional(),
     can_edit: z.boolean().optional(),
+    /** The project's newest version. Above `version` when this list is for an older one — a
+     * release resolved behind newer drafts, or a version asked for by number. Null when unread. */
+    latest_version: z.number().nullable().optional(),
 })
 
 export const ComponentRefSchema = z.looseObject({
