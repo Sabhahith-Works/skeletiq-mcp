@@ -70,6 +70,15 @@ of the verdict it was a summary of.
   genuinely incomplete and may answer differently if asked again; a check with nothing stored, where
   no review has been run or no simulation exists for the version, cannot. Only the first is a reason
   to retry, and neither is a reason to treat the design as clear.
+- **`mode: "build_order"` fails instead of returning an empty order for a design it could not
+  read.** A stored design that will not parse used to come back as a build order with no steps —
+  byte-identical to a design that genuinely has no components, and the one answer an agent is most
+  likely to act on by building nothing. It now returns the server's own sentence, the same way
+  `check_drift` has always answered that failure.
+- **`mode: "readiness"` and `mode: "todo"` can name `edge_direction` as a source they could not
+  speak for.** A SkeletIQ design's arrows point from caller to callee, and the build order is
+  derived from that. When a version's arrows cannot be placed in that convention, the answer now
+  says so rather than serving an order derived from a direction nobody established.
 - **`generate_architecture` says what it actually asks for.** Its description promised clarifying
   questions only for a prompt that "names no system at all". A prompt that names a system but no
   scale is asked too — how many users, how many requests — because a design built on an invented
