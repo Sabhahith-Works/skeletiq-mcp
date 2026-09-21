@@ -776,6 +776,12 @@
           "nullable": true,
           "item": null
         },
+        "answer_pending": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "gap_id": {
           "required": true,
           "kind": "scalar",

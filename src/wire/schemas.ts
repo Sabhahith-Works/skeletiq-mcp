@@ -371,6 +371,9 @@ export const DesignGapSchema = z.looseObject({
     /** `gap:{gap_id}` — the identity the review, the advisor and the decision suggestions share,
      * and the key a dismissal is recorded against. Absent from servers before 0.3.0. */
     problem_key: z.string().optional(),
+    /** An answer is recorded and this version was not built with it, so iterating the design
+     * would change something. False once a generation has been handed the answer. */
+    answer_pending: z.boolean().optional(),
 })
 
 /**
