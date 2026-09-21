@@ -61,6 +61,15 @@ of the verdict it was a summary of.
   agrees to. The old heading said those "never block, and some need a paid plan to clear" — wrong
   twice: accepting is free, and no check failed. They have their own heading now, and the readiness
   answer points at `mode: "todo"` for the same work item by item.
+- **`mode: "readiness"` says when a check could not be answered, instead of reading as a pass.** A
+  source that failed to load used to shorten the answer silently: a questions table that was down
+  arrived as an empty list of open questions, which is indistinguishable from a design whose
+  questions are all answered, and an agent was told the design was ready to build. The sources the
+  server could not speak for are now named — the same set, and the same wording, `mode: "todo"`
+  reports — and each says which of the two things happened. A read that broke leaves the answer
+  genuinely incomplete and may answer differently if asked again; a check with nothing stored, where
+  no review has been run or no simulation exists for the version, cannot. Only the first is a reason
+  to retry, and neither is a reason to treat the design as clear.
 - **`generate_architecture` says what it actually asks for.** Its description promised clarifying
   questions only for a prompt that "names no system at all". A prompt that names a system but no
   scale is asked too — how many users, how many requests — because a design built on an invented
