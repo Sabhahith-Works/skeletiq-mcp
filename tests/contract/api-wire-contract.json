@@ -1323,6 +1323,12 @@
           "nullable": false,
           "item": "ReadinessRowResponse"
         },
+        "unavailable_sources": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "UnavailableSourceResponse"
+        },
         "unknown_gate_count": {
           "required": true,
           "kind": "scalar",
@@ -1980,6 +1986,12 @@
         "nested in todo.unavailable_sources"
       ],
       "fields": {
+        "kind": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "reason": {
           "required": true,
           "kind": "scalar",

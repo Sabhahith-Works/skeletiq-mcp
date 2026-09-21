@@ -290,6 +290,25 @@ export const BuildOrderSchema = z.looseObject({
     release: ReleaseFactsSchema,
 })
 
+/**
+ * A source the server could not answer for, named rather than silently dropped.
+ *
+ * `kind` separates the two ways that happens, and only one of them is worth acting on.
+ * `failed` is a read that broke: the list is genuinely incomplete and asking again may answer
+ * differently. `missing` is a check with nothing stored — no review has been run, no simulation
+ * exists for this version — where asking again cannot change the answer. Treat a `missing` as a
+ * statement about what has not been checked, not as a degraded response.
+ *
+ * Optional, so a server older than the field still parses; read it as `failed` when absent,
+ * which over-reports rather than hiding an outage.
+ */
+export const UnavailableSourceSchema = z.looseObject({
+    source: z.string(),
+    reason: z.string(),
+    /** `failed` | `missing`. A string, not a union: a value added server-side must still parse. */
+    kind: z.string().optional(),
+})
+
 export const ReadinessRowSchema = z.looseObject({
     key: z.string(),
     label: z.string(),
@@ -330,6 +349,15 @@ export const ReadinessSchema = z.looseObject({
      * wire, and an empty array is the server saying it looked and found nothing.
      */
     release_warnings: z.array(z.string()).optional(),
+    /**
+     * Sources this checklist could not speak for, exactly as `/todo` reports them.
+     *
+     * A failed read reaches each row builder as that source's own empty value — no questions, no
+     * decisions, no ledger — and every one of those empties reads as *clear*, so an outage could
+     * answer `ready: true` with `release_warnings: []`. Each one also has a row of its own now;
+     * this is the same fact in the shape a caller showing both lists can join on.
+     */
+    unavailable_sources: z.array(UnavailableSourceSchema).optional(),
 })
 
 export const DesignGapSchema = z.looseObject({
@@ -495,12 +523,6 @@ export const TodoGroupSchema = z.looseObject({
     bulk_action: TodoActionSchema.nullable().optional(),
 })
 export type TodoGroup = z.infer<typeof TodoGroupSchema>
-
-/** A source the server could not read for this version, named rather than silently dropped. */
-export const UnavailableSourceSchema = z.looseObject({
-    source: z.string(),
-    reason: z.string(),
-})
 
 export const TodoSchema = z.looseObject({
     architecture_id: z.string(),
