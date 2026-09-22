@@ -146,12 +146,34 @@ export function isCitedRequirement(row: RequirementLedgerRow): boolean {
     return (row.cited_by_components?.length ?? 0) > 0 || (row.cited_by_decisions?.length ?? 0) > 0
 }
 
+/**
+ * The check whose `fails` only says nothing cites the line: "Nothing in the design cites it."
+ *
+ * Not a measurement of the design. The server stopped counting it as a failure in the handoff
+ * gate (`requirement_blocks_handoff`, `services/handoff/blocking.py`), so printing it as `fails`
+ * here told an agent a check had measured a gap that readiness and To do do not count -- and an
+ * agent told a line fails adds a part for it.
+ */
+const CITATION_ONLY_METHOD = 'structure'
+
+/**
+ * The verdict a row is printed and counted with: the server's word, except that a `fails` whose
+ * only finding is the missing citation reads as no verdict at all -- that row is `cited by
+ * nothing`, which the listing already says. A server older than `verdict` sends `status`, read as
+ * it always was.
+ */
+export function requirementVerdict(row: RequirementLedgerRow): string {
+    const verdict = (row.verdict ?? row.status ?? '').trim()
+    if (verdict === 'fails' && (row.check_method ?? '').trim() === CITATION_ONLY_METHOD) return ''
+    return verdict
+}
+
 export function orderRequirementRows(rows: RequirementLedgerRow[]): RequirementLedgerRow[] {
     return [...rows].sort((a, b) => verdictRank(a) - verdictRank(b))
 }
 
 function verdictRank(row: RequirementLedgerRow): number {
-    const verdict = (row.verdict ?? row.status ?? '').trim()
+    const verdict = requirementVerdict(row)
     if (verdict === 'fails' || verdict === 'unmet') return 0
     // Ranked here rather than in the table: "nothing cites it" is not a verdict, and since 0.3.0
     // it is read off the citations instead of borrowing the `uncited` status word. It still sorts

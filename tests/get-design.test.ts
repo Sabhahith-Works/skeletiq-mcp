@@ -427,6 +427,45 @@ describe('the requirements a design was built from', () => {
         )
     })
 
+    it('does not call a line failing when its only finding is that nothing cites it', async () => {
+        // The shape of a real version: a line a model check failed, and a line whose `fails` came
+        // from the structure check alone. The server's handoff gate counts only the first
+        // (`requirement_blocks_handoff`), so a heading of "2 failing" told an agent a check had
+        // measured a gap readiness does not count -- and an agent told a line fails builds a part.
+        await withLedger({
+            rows: [
+                {
+                    id: 'R3',
+                    text: 'Perform KYC verification for borrowers.',
+                    verdict: 'fails',
+                    check_method: 'verifier',
+                    verdict_reason: 'No part is dedicated to KYC.',
+                    checked_by: 'gpt-4o-mini',
+                    cited_by_components: ['db'],
+                },
+                {
+                    id: 'R18',
+                    text: 'Borrowers apply for loans of up to 5 lakh.',
+                    verdict: 'fails',
+                    check_method: 'structure',
+                    verdict_reason: 'Nothing in the design cites it.',
+                    cited_by_components: [],
+                    cited_by_decisions: [],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain(
+            [
+                'Requirements — 2 total; 1 failing, 1 cited by nothing:',
+                '- R3 [fails] Perform KYC verification for borrowers. — No part is dedicated to KYC. (checked by gpt-4o-mini)',
+                '- R18 [cited by nothing] Borrowers apply for loans of up to 5 lakh. — Nothing in the design cites it.',
+            ].join('\n'),
+        )
+    })
+
     it('puts what needs doing first, and never calls a requirement met', async () => {
         await withLedger()
 

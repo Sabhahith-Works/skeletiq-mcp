@@ -17,7 +17,7 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import type { SkeletiqClient } from '../http/client.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
-import { isCitedRequirement, orderRequirementRows, overview, sliceComponent } from '../lib/slice.js'
+import { isCitedRequirement, orderRequirementRows, overview, requirementVerdict, sliceComponent } from '../lib/slice.js'
 import {
     BriefSchema,
     BuildOrderSchema,
@@ -434,9 +434,9 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
     // optional on the wire and computed over a set this response may not be showing in full. A
     // heading that disagrees with the list under it is worse than one that ignores a field.
     const attention = [
-        [rows.filter((row) => verdictOf(row) === 'fails').length, 'failing'],
+        [rows.filter((row) => requirementVerdict(row) === 'fails').length, 'failing'],
         [rows.filter((row) => !isCitedRequirement(row)).length, 'cited by nothing'],
-        [rows.filter((row) => verdictOf(row) === 'not_checked' || verdictOf(row) === 'not_checkable').length, 'unchecked'],
+        [rows.filter((row) => requirementVerdict(row) === 'not_checked' || requirementVerdict(row) === 'not_checkable').length, 'unchecked'],
     ]
         .filter(([count]) => (count as number) > 0)
         .map(([count, word]) => `${count} ${word}`)
@@ -512,23 +512,11 @@ function requirementsWithdrawn(rows: RequirementLedgerRow[] | undefined): string
 }
 
 /**
- * What became of a requirement, in the vocabulary the server settled on.
- *
- * `verdict` says which check answered and how far the answer goes; `status` was a four-word
- * summary of it, and the summary is what 0.3.0 drops. A server that predates `verdict` still sends
- * `status`, so its word is used rather than nothing — an older server must not turn every row
- * blank.
- */
-function verdictOf(row: RequirementLedgerRow): string {
-    return (row.verdict ?? row.status ?? '').trim()
-}
-
-/**
  * One row: the id, what a named check said about it, why, and what it actually says.
  *
- * The verdict is printed as the server sent it rather than mapped through a table of five, so a
- * value added server-side arrives intact instead of being flattened into the nearest word this
- * package happens to know. `no reason given` is never printed as an answer: the reason is the
+ * The verdict is printed as the server sent it (`requirementVerdict`) rather than mapped through a
+ * table of five, so a value added server-side arrives intact instead of being flattened into the
+ * nearest word this package happens to know. `no reason given` is never printed as an answer: the reason is the
  * whole value of the verdict, and a row without one is a row nobody can act on.
  *
  * A row with no text at all says so — the whole point of the block is that an agent should not be
@@ -542,7 +530,7 @@ function verdictOf(row: RequirementLedgerRow): string {
  * every requirement the version records is a requirement the agent has to build to.
  */
 function requirementLine(row: RequirementLedgerRow): string {
-    const verdict = verdictOf(row)
+    const verdict = requirementVerdict(row)
     const marks = [verdict, ...(isCitedRequirement(row) ? [] : ['cited by nothing'])].filter(Boolean)
     const label = marks.length > 0 ? ` [${marks.join(' · ')}]` : ''
     const text = (row.text ?? '').replace(/\s+/g, ' ').trim()

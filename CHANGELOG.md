@@ -99,6 +99,15 @@ of the verdict it was a summary of.
 
 ### Fixed
 
+- **A requirement is not called failing only because nothing in the design cites it.** The ledger
+  gives such a line the verdict `fails`, with the reason "Nothing in the design cites it." — a fact
+  about what the design links, not a check that measured it. SkeletIQ's handoff gate stopped
+  counting it, but the requirements heading still counted it as failing, the row printed
+  `[fails · cited by nothing]`, and the legend said a `fails` is a gap a named check measured. On a
+  real design that read "2 failing" where readiness said one requirement blocks, and an agent told a
+  line fails tends to add a part for it. Such a line now prints and counts as `cited by nothing`
+  only; a `fails` from simulation, cost, the review rules or the model check is unchanged.
+
 - **`get_design` shows the requirements ledger it said it would.** `0.2.0` added the requirements a
   design was built from, and what became of each, to `overview` and `component` — and in practice
   neither ever printed one. To choose a version the connector reads the project's version list, and
