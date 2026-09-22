@@ -7,7 +7,7 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
-## [0.3.0] — unreleased
+## [0.3.0] — 2026-09-22
 
 The vocabulary changes. A design's outstanding work now has one name on every surface — SkeletIQ
 calls it the To do list — and the four-word requirement status it used to print is gone in favour
