@@ -7,6 +7,17 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
+## [Unreleased]
+
+### Added
+
+- **A runtime's spent shared allowance reads as one.** Some SkeletIQ runtimes run on a daily
+  allowance shared by everyone using them, and the server now refuses a design on one that cannot
+  cover it with `RUNTIME_ALLOWANCE_SPENT`, before anything is started or charged. The tool answer
+  gives the server's sentence and the moment the allowance resets, offers no upgrade (no plan raises
+  a shared allowance), and the error is not retryable, like the account's daily limit. No runtime an
+  agent can be set to has such an allowance today; this reads one correctly if it ever does.
+
 ## [0.3.0] — 2026-09-22
 
 The vocabulary changes. A design's outstanding work now has one name on every surface — SkeletIQ

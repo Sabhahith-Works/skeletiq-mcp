@@ -48,12 +48,12 @@ export class SkeletiqApiError extends Error {
     /**
      * A `GET` may be retried after a 429; a `POST` that may have spent credits may not.
      *
-     * A spent daily allowance is the one 429 that is *not* retryable: it refills on a clock
-     * measured in hours, so a caller backing off and trying again is burning its budget on a
-     * call that cannot succeed today.
+     * A spent daily allowance is the 429 that is *not* retryable — the account's, or a runtime's
+     * shared one: each refills on a clock measured in hours, so a caller backing off and trying
+     * again is burning its budget on a call that cannot succeed today.
      */
     get isRetryable(): boolean {
-        if (this.code === 'DAILY_LIMIT_REACHED') return false
+        if (this.code === 'DAILY_LIMIT_REACHED' || this.code === 'RUNTIME_ALLOWANCE_SPENT') return false
         return this.status === 429 || this.code === 'IDEMPOTENCY_UNAVAILABLE'
     }
 }
@@ -160,6 +160,18 @@ export function describeApiError(error: SkeletiqApiError): string {
             if (resetAt) lines.push(`The allowance refills at ${resetAt}.`)
             const upgradeUrl = asString(detail?.upgrade_url)
             if (upgradeUrl) lines.push(`A larger plan raises the daily limit: ${upgradeUrl}`)
+            break
+        }
+
+        case 'RUNTIME_ALLOWANCE_SPENT': {
+            // The runtime serving the run draws a daily allowance shared by everyone on it, and
+            // not enough is left for a design. Nothing was started or charged. Unlike the
+            // account's daily limit no plan raises it, so there is no upgrade to offer. No runtime
+            // an agent can be set to has such an allowance today; this reads one correctly if it
+            // ever does.
+            lines.push(error.message)
+            const resetAt = asString(detail?.reset_at)
+            if (resetAt) lines.push(`The allowance resets at ${resetAt}.`)
             break
         }
 

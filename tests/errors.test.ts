@@ -141,6 +141,35 @@ describe('the daily generation allowance', () => {
     })
 })
 
+describe("a runtime's shared allowance", () => {
+    const MESSAGE =
+        "Composer-5 runs on a shared daily allowance, and there isn't enough left today for a design. " +
+        "This one wasn't started and nothing was charged."
+
+    it('says what happened and when it resets, and offers no upgrade', async () => {
+        const text = await callWith(
+            429,
+            envelope('RUNTIME_ALLOWANCE_SPENT', MESSAGE, {
+                code: 'RUNTIME_ALLOWANCE_SPENT',
+                message: MESSAGE,
+                runtime_entry_id: 'composer-5',
+                runtime_name: 'Composer-5',
+                reset_at: '2026-09-24T00:00:00+00:00',
+            }),
+        )
+
+        expect(text).toContain(MESSAGE)
+        expect(text).toContain('The allowance resets at 2026-09-24T00:00:00+00:00.')
+        expect(text).not.toMatch(/upgrade|plan/i)
+    })
+
+    it('is not retryable: it refills in hours, not seconds', () => {
+        const spent = parseApiError(429, { error: { code: 'RUNTIME_ALLOWANCE_SPENT', message: 'spent' } }, undefined)
+
+        expect(spent.isRetryable).toBe(false)
+    })
+})
+
 describe('availability', () => {
     it('says a refused idempotency check cost nothing', async () => {
         const text = await callWith(
