@@ -405,8 +405,8 @@ describe('the requirements a design was built from', () => {
             await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'db' }),
         )
 
-        expect(overviewText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)')
-        expect(componentText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)')
+        expect(overviewText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.')
+        expect(componentText).toContain('- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.')
         const listed = api.calls.find((call) => call.url.includes('/architectures?'))
         expect(listed).toBeDefined()
         expect(api.calls.filter((call) => call.url.endsWith(`/architectures/${ARCH_V2}`))).toHaveLength(1)
@@ -420,7 +420,7 @@ describe('the requirements a design was built from', () => {
         expect(text(result)).toContain(
             [
                 'Requirements — 3 total; 1 failing, 1 cited by nothing:',
-                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.',
                 '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
                 '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
             ].join('\n'),
@@ -457,11 +457,116 @@ describe('the requirements a design was built from', () => {
 
         const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
 
+        // A server this old sends no `blocks_handoff`, so the method decides: neither the model
+        // check's `fails` nor the citation-only one is a measurement, and neither is counted failing.
         expect(body).toContain(
             [
-                'Requirements — 2 total; 1 failing, 1 cited by nothing:',
-                '- R3 [fails] Perform KYC verification for borrowers. — No part is dedicated to KYC. (checked by gpt-4o-mini)',
+                'Requirements — 2 total; 1 unconfirmed, 1 cited by nothing:',
+                '- R3 [unconfirmed (model check) — verify before building for it] Perform KYC verification for borrowers. — No part is dedicated to KYC. (checked by gpt-4o-mini)',
                 '- R18 [cited by nothing] Borrowers apply for loans of up to 5 lakh. — Nothing in the design cites it.',
+            ].join('\n'),
+        )
+    })
+
+    it('counts only what holds a handoff back as failing, and says what a model check\'s doubt is', async () => {
+        // A current server says per row whether it blocks. A measured `fails` does; the model
+        // check's does not, and reads as unconfirmed with the advice beside it.
+        await withLedger({
+            rows: [
+                {
+                    id: 'R1',
+                    text: 'Send a receipt by email.',
+                    verdict: 'fails',
+                    check_method: 'verifier',
+                    verdict_reason: 'No part sends email.',
+                    checked_by: 'gpt-4.1-mini',
+                    blocks_handoff: false,
+                    unconfirmed_reason: 'model_check',
+                    cited_by_components: ['api'],
+                },
+                {
+                    id: 'R2',
+                    text: 'Handle 5,000 requests per second.',
+                    verdict: 'fails',
+                    check_method: 'simulation',
+                    verdict_reason: 'Sized for 1,200/s.',
+                    blocks_handoff: true,
+                    unconfirmed_reason: null,
+                    cited_by_components: ['api'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain(
+            [
+                'Requirements — 2 total; 1 failing, 1 unconfirmed:',
+                '- R2 [fails] Handle 5,000 requests per second. — Sized for 1,200/s.',
+                '- R1 [unconfirmed (model check) — verify before building for it] Send a receipt by email. — No part sends email. (checked by gpt-4.1-mini)',
+            ].join('\n'),
+        )
+        expect(body).toMatch(/`unconfirmed \(model check\)` — only a model check says the design may not meet it/)
+
+        const component = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'api' }),
+        )
+        expect(component).toContain('- R1 [unconfirmed (model check) — verify before building for it] Send a receipt by email.')
+        expect(component).toMatch(/Nothing\nmeasured it, so it does not block handoff/)
+    })
+
+    it('takes the server\'s word on what blocks over its own reading of the method', async () => {
+        await withLedger({
+            rows: [
+                {
+                    id: 'R1',
+                    text: 'Send a receipt by email.',
+                    verdict: 'fails',
+                    check_method: 'verifier',
+                    verdict_reason: 'No part sends email.',
+                    blocks_handoff: true,
+                    cited_by_components: ['api'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('Requirements — 1 total; 1 failing:')
+        expect(body).not.toMatch(/unconfirmed/)
+    })
+
+    it('still counts a measured fail as failing on a server that predates `blocks_handoff`', async () => {
+        await withLedger({
+            rows: [
+                {
+                    id: 'R1',
+                    text: 'Back up the orders database.',
+                    verdict: 'fails',
+                    check_method: 'rules',
+                    verdict_reason: 'No backup is declared.',
+                    cited_by_components: ['db'],
+                },
+                {
+                    id: 'R2',
+                    text: 'Retain orders for seven years.',
+                    verdict: 'fails',
+                    check_method: null,
+                    verdict_reason: 'Nothing stores orders that long.',
+                    cited_by_components: ['db'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        // No method recorded is a row from before methods existed, and its `fails` was the model
+        // check's — unconfirmed, never a blocker.
+        expect(body).toContain(
+            [
+                'Requirements — 2 total; 1 failing, 1 unconfirmed:',
+                '- R1 [fails] Back up the orders database. — No backup is declared.',
+                '- R2 [unconfirmed (model check) — verify before building for it] Retain orders for seven years. — Nothing stores orders that long.',
             ].join('\n'),
         )
     })
@@ -586,7 +691,7 @@ describe('the requirements a design was built from', () => {
         expect(body).toBe(
             overviewWith([
                 'Requirements — 3 total; 1 failing, 1 cited by nothing:',
-                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.',
                 '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
                 '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
                 ...VERDICT_LEGEND,
@@ -607,7 +712,7 @@ describe('the requirements a design was built from', () => {
         expect(body).toBe(
             overviewWith([
                 'Requirements — 3 total; 1 failing, 1 cited by nothing:',
-                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.',
                 '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
                 '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
                 ...VERDICT_LEGEND,
@@ -649,7 +754,7 @@ describe('the requirements a design was built from', () => {
         expect(body).toBe(
             overviewWith([
                 'Requirements — 4 total; 1 failing, 1 cited by nothing:',
-                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.',
                 '- R3 [no_gap_found · cited by nothing] The service stays available when one region is lost.',
                 '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
                 '- R4 [waived] Link analytics retention is out of scope for v1.',
@@ -698,7 +803,7 @@ describe('the requirements a design was built from', () => {
         expect(text(result)).toContain(
             [
                 'Requirements the design cites this component for:',
-                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes. (checked by gpt-5)',
+                '- R2 [fails] Every write to a link is recorded in an audit trail. — No component in the design records writes.',
                 '- R1 [no_gap_found] A shortened link resolves in under 50 ms at the 99th percentile. — The design records a cache in front of the store, and nothing contradicts the target.',
             ].join('\n'),
         )

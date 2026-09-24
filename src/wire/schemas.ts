@@ -162,6 +162,14 @@ export const RequirementLedgerRowSchema = z.looseObject({
     /** The model behind a `verifier` verdict. Null on every deterministic row — naming a model
      * beside a number the server computed would be a false attribution. */
     checked_by: z.string().nullable().optional(),
+    /** Whether this row holds a handoff back: a `fails` a measurement reached (capacity, cost, the
+     * review's rules). A model check's `fails` does not block. Absent from older APIs, where
+     * `requirementBlocksHandoff` falls back to the method. */
+    blocks_handoff: z.boolean().optional(),
+    /** Why a `fails` does not block: `model_check` — only the model check failed it, nothing
+     * measured it. Null on every other row. A string, for the reason `status` is one. Absent from
+     * older APIs. */
+    unconfirmed_reason: z.string().nullable().optional(),
     cited_by_components: z.array(z.string()).nullable().optional(),
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),

@@ -18,6 +18,21 @@ new version.
   a shared allowance), and the error is not retryable, like the account's daily limit. No runtime an
   agent can be set to has such an allowance today; this reads one correctly if it ever does.
 
+### Changed
+
+- **A requirement only a model check failed reads as unconfirmed, not failing.** SkeletIQ checks
+  each requirement by capacity, cost, its review rules, or — where none of those applies — a
+  language model reading the design. Only the first three are measurements, and the server now
+  says so per row: `blocks_handoff` is true only for a `fails` one of them reached, and
+  `unconfirmed_reason: "model_check"` marks a `fails` that only the model check reached. `get_design`
+  prints such a line as `unconfirmed (model check) — verify before building for it`, counts it apart
+  from `failing`, and explains the word under the list. An agent told a line fails adds a part for
+  it; a model's opinion is a reason to look, not to build.
+
+  Against a server that does not send `blocks_handoff`, the connector reads the method instead: a
+  `fails` from capacity, cost or the review rules is failing, and one from the model check, or with
+  no method recorded, is unconfirmed.
+
 ## [0.3.0] — 2026-09-22
 
 The vocabulary changes. A design's outstanding work now has one name on every surface — SkeletIQ

@@ -17,7 +17,15 @@ import type { McpServer } from '@modelcontextprotocol/server'
 import type { SkeletiqClient } from '../http/client.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
-import { isCitedRequirement, orderRequirementRows, overview, requirementVerdict, sliceComponent } from '../lib/slice.js'
+import {
+    isCitedRequirement,
+    isUnconfirmedRequirement,
+    orderRequirementRows,
+    overview,
+    requirementVerdict,
+    sliceComponent,
+    UNCONFIRMED_ADVICE,
+} from '../lib/slice.js'
 import {
     BriefSchema,
     BuildOrderSchema,
@@ -433,8 +441,12 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
     // Counted off the rows being printed rather than read from the ledger's own `counts`, which is
     // optional on the wire and computed over a set this response may not be showing in full. A
     // heading that disagrees with the list under it is worse than one that ignores a field.
+    // `failing` is what holds a handoff back, the same count readiness gates on; a model check's
+    // doubt is counted beside it, never in it.
+    const unconfirmed = rows.filter(isUnconfirmedRequirement).length
     const attention = [
         [rows.filter((row) => requirementVerdict(row) === 'fails').length, 'failing'],
+        [unconfirmed, 'unconfirmed'],
         [rows.filter((row) => !isCitedRequirement(row)).length, 'cited by nothing'],
         [rows.filter((row) => requirementVerdict(row) === 'not_checked' || requirementVerdict(row) === 'not_checkable').length, 'unchecked'],
     ]
@@ -450,6 +462,7 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
         'contradicted it, which is not the same as proven; `not_checked` / `not_checkable` — nobody',
         'established either way, and neither is fine. `cited by nothing` means no component and no',
         'decision in the design claims to address it.',
+        ...(unconfirmed > 0 ? UNCONFIRMED_LEGEND : []),
         // Two facts about how far the statuses can be trusted, said only when the server states
         // them. An absent `verification_state` is an older server, not a verifier that did not run,
         // and claiming the second would be this package inventing a fact about someone's design.
@@ -470,6 +483,12 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
     ]
 }
 
+/** Said under a list only when a row in it is unconfirmed, so the word never goes unexplained. */
+const UNCONFIRMED_LEGEND = [
+    '`unconfirmed (model check)` — only a model check says the design may not meet it. Nothing',
+    `measured it, so it does not block handoff: ${UNCONFIRMED_ADVICE} rather than adding a part.`,
+]
+
 /**
  * The requirements the design cites this component against.
  *
@@ -486,6 +505,7 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
         ...rows.map(requirementLine),
         '`fails` — a named check measured the design as not meeting it; `not_checked` — nobody',
         'established either way; `no_gap_found` — nothing contradicted it, which is not the same as proven.',
+        ...(rows.some(isUnconfirmedRequirement) ? UNCONFIRMED_LEGEND : []),
     ]
 }
 
@@ -531,7 +551,8 @@ function requirementsWithdrawn(rows: RequirementLedgerRow[] | undefined): string
  */
 function requirementLine(row: RequirementLedgerRow): string {
     const verdict = requirementVerdict(row)
-    const marks = [verdict, ...(isCitedRequirement(row) ? [] : ['cited by nothing'])].filter(Boolean)
+    const shown = isUnconfirmedRequirement(row) ? `${verdict} — ${UNCONFIRMED_ADVICE}` : verdict
+    const marks = [shown, ...(isCitedRequirement(row) ? [] : ['cited by nothing'])].filter(Boolean)
     const label = marks.length > 0 ? ` [${marks.join(' · ')}]` : ''
     const text = (row.text ?? '').replace(/\s+/g, ' ').trim()
     const reason = (row.verdict_reason ?? '').replace(/\s+/g, ' ').trim()

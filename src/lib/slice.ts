@@ -124,8 +124,9 @@ function withdrawnRequirements(ledger: RequirementLedger, componentId: string): 
 }
 
 /**
- * What needs doing first: a check said the design does not meet it, then nothing cites it, then
- * nobody checked. Those are the three that ask the reader to do something.
+ * What needs doing first: a check measured the design as not meeting it, then a model check doubts
+ * it, then nothing cites it, then nobody checked. Those are the four that ask the reader to do
+ * something.
  *
  * Ordered on `verdict` since 0.3.0, which is what the row is actually printed with. A server that
  * predates the verdict still sends `status`, and its word is ranked through the same table — the
@@ -157,15 +158,52 @@ export function isCitedRequirement(row: RequirementLedgerRow): boolean {
 const CITATION_ONLY_METHOD = 'structure'
 
 /**
- * The verdict a row is printed and counted with: the server's word, except that a `fails` whose
- * only finding is the missing citation reads as no verdict at all -- that row is `cited by
- * nothing`, which the listing already says. A server older than `verdict` sends `status`, read as
- * it always was.
+ * The checks whose `fails` is a measurement — capacity, cost, the review's rules — and so the only
+ * ones that hold a handoff back. Read only for a server that predates `blocks_handoff`; the server's
+ * own set is the authority, and SkeletIQ's API tests pin this copy to it.
+ */
+const MEASURED_METHODS = ['simulation', 'cost', 'rules']
+
+/**
+ * The word for a `fails` that does not block because nothing measured it, keyed by the server's
+ * `unconfirmed_reason`. A reason this package does not know prints as plain `unconfirmed`, never as
+ * a `fails` — the server has already said it does not block.
+ */
+const UNCONFIRMED_WORDS: Record<string, string> = { model_check: 'unconfirmed (model check)' }
+
+/** What an agent is told to do with an unconfirmed line, printed beside it. */
+export const UNCONFIRMED_ADVICE = 'verify before building for it'
+
+/**
+ * Whether this row holds a handoff back: the server's `blocks_handoff` when it sends one, otherwise
+ * a `fails` from a measured check. A model check's `fails`, a citation-only one, and one with no
+ * method recorded do not block — an older server counted them, and the product no longer does.
+ */
+export function requirementBlocksHandoff(row: RequirementLedgerRow): boolean {
+    if (typeof row.blocks_handoff === 'boolean') return row.blocks_handoff
+    return (row.verdict ?? '').trim() === 'fails' && MEASURED_METHODS.includes((row.check_method ?? '').trim())
+}
+
+/**
+ * The verdict a row is printed and counted with: the server's word, with two exceptions for a
+ * `fails` that does not block a handoff. One whose only finding is the missing citation reads as no
+ * verdict at all — that row is `cited by nothing`, which the listing already says. One only a model
+ * check reached reads `unconfirmed (model check)`: a model's opinion, not a measurement. A server
+ * older than `verdict` sends `status`, read as it always was.
  */
 export function requirementVerdict(row: RequirementLedgerRow): string {
     const verdict = (row.verdict ?? row.status ?? '').trim()
-    if (verdict === 'fails' && (row.check_method ?? '').trim() === CITATION_ONLY_METHOD) return ''
-    return verdict
+    if (verdict !== 'fails' || requirementBlocksHandoff(row)) return verdict
+    const method = (row.check_method ?? '').trim()
+    if (method === CITATION_ONLY_METHOD) return ''
+    // An older server sends no reason; its non-blocking `fails` can only be the model check's.
+    const reason = row.unconfirmed_reason ?? 'model_check'
+    return UNCONFIRMED_WORDS[reason] ?? 'unconfirmed'
+}
+
+/** Whether the row is a `fails` that nothing measured — see `requirementVerdict`. */
+export function isUnconfirmedRequirement(row: RequirementLedgerRow): boolean {
+    return requirementVerdict(row).startsWith('unconfirmed')
 }
 
 export function orderRequirementRows(rows: RequirementLedgerRow[]): RequirementLedgerRow[] {
@@ -175,12 +213,14 @@ export function orderRequirementRows(rows: RequirementLedgerRow[]): RequirementL
 function verdictRank(row: RequirementLedgerRow): number {
     const verdict = requirementVerdict(row)
     if (verdict === 'fails' || verdict === 'unmet') return 0
+    // Next, a line a model check doubts: nothing measured it, but it is the next thing to verify.
+    if (isUnconfirmedRequirement(row)) return 1
     // Ranked here rather than in the table: "nothing cites it" is not a verdict, and since 0.3.0
     // it is read off the citations instead of borrowing the `uncited` status word. It still sorts
-    // second — a requirement nothing claims to address is the next thing worth looking at.
-    if (!isCitedRequirement(row)) return 1
+    // early — a requirement nothing claims to address is the next thing worth looking at.
+    if (!isCitedRequirement(row)) return 2
     const index = VERDICT_ORDER.indexOf(verdict)
-    return index === -1 ? VERDICT_ORDER.length + 1 : index + 2
+    return index === -1 ? VERDICT_ORDER.length + 2 : index + 3
 }
 
 /**
