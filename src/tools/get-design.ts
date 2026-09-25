@@ -505,8 +505,9 @@ function unconfirmedLegend(rows: RequirementLedgerRow[]): string[] {
             : []),
         ...(reasons.has('unstated_input')
             ? ['`unconfirmed (unstated split)` — capacity falls short only under an assumption nobody stated',
-               '(the rate split evenly between entrances, or traffic weights that do not add up); split the',
-               'most favourable way it would hold. It does not block handoff: ask how the traffic divides.']
+               '(the rate split evenly between entrances, or traffic weights that do not add up). Its reason',
+               'names the split the design would need — judge whether that is realistic. It does not block',
+               'handoff: ask how the traffic divides.']
             : []),
     ]
 }

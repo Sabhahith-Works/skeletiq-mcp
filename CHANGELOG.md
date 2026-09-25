@@ -35,10 +35,12 @@ new version.
 - **A capacity line that rests on an unstated split reads as unconfirmed.** A design's capacity
   can turn on something nobody said: the request rate divided evenly between two entry points, or
   traffic weights on one component's connections that do not add up to 1. When a stated rate falls
-  short only under that assumption — split the most favourable way, the design would hold it — the
-  server marks the row `unconfirmed_reason: "unstated_input"`, names the assumption in the new
-  optional `unstated_input` field, and does not block handoff on it. `get_design` prints the line as
-  `unconfirmed (unstated split)` and explains the word under the list. A line short however the
+  short only under that assumption, the server marks the row `unconfirmed_reason: "unstated_input"`,
+  names the assumption in the new optional `unstated_input` field, and does not block handoff on it.
+  The row's reason also names the split the design would need — "It would hold it only if most of
+  the traffic enters through Advertiser Users." — so the reader can judge whether that is
+  realistic. `get_design` prints the line as `unconfirmed (unstated split)` and explains the word
+  under the list. A line short however the
   split falls still reads `fails`. The readiness view lists a load gate in the same state under its
   own heading (`state: "unconfirmed"`), apart from the open gates, instead of dropping it.
 

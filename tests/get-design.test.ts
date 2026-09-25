@@ -539,6 +539,8 @@ describe('the requirements a design was built from', () => {
             '- R2 [unconfirmed (unstated split) — verify before building for it] Ingest 50,000 clicks per second.',
         )
         expect(body).toMatch(/`unconfirmed \(unstated split\)` — capacity falls short only under an assumption nobody stated/)
+        expect(body).toMatch(/names the split the design would need — judge whether that is realistic/)
+        expect(body).not.toMatch(/most favourable/)
         expect(body).not.toMatch(/`unconfirmed \(model check\)`/)
     })
 
@@ -1330,7 +1332,9 @@ describe('readiness and gaps', () => {
                             state: 'unconfirmed',
                             category: 'gate',
                             gating: false,
-                            detail: 'Holds about 40,600/s, short of the 50,000/s you stated. That rests on an input nobody stated.',
+                            detail: 'Holds about 40,600/s, short of the 50,000/s you stated. That rests on an input nobody '
+                                + 'stated: the rate is split evenly between Ad Servers and Advertiser Users. It would hold '
+                                + 'it only if most of the traffic enters through Advertiser Users.',
                         },
                     ],
                     release: RELEASE_FACTS,
@@ -1343,6 +1347,7 @@ describe('readiness and gaps', () => {
         expect(body).toMatch(/Every gate is clear/)
         expect(body).toMatch(/Unconfirmed \(the check ran, but its answer turns on an input nobody stated; never blocks\):/)
         expect(body).toMatch(/- Short of the stated load: unconfirmed — Holds about 40,600\/s, short of the 50,000\/s you stated/)
+        expect(body).toContain('only if most of the traffic enters through Advertiser Users.')
     })
 
     it('passes on the server\'s reason for an unanswered advisory instead of guessing one', async () => {
