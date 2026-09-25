@@ -32,6 +32,15 @@ new version.
   Against a server that does not send `blocks_handoff`, the connector reads the method instead: a
   `fails` from capacity, cost or the review rules is failing, and one from the model check, or with
   no method recorded, is unconfirmed.
+- **A capacity line that rests on an unstated split reads as unconfirmed.** A design's capacity
+  can turn on something nobody said: the request rate divided evenly between two entry points, or
+  traffic weights on one component's connections that do not add up to 1. When a stated rate falls
+  short only under that assumption — split the most favourable way, the design would hold it — the
+  server marks the row `unconfirmed_reason: "unstated_input"`, names the assumption in the new
+  optional `unstated_input` field, and does not block handoff on it. `get_design` prints the line as
+  `unconfirmed (unstated split)` and explains the word under the list. A line short however the
+  split falls still reads `fails`. The readiness view lists a load gate in the same state under its
+  own heading (`state: "unconfirmed"`), apart from the open gates, instead of dropping it.
 
 ## [0.3.0] — 2026-09-22
 

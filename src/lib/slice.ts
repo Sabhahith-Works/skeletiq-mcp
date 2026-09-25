@@ -169,7 +169,10 @@ const MEASURED_METHODS = ['simulation', 'cost', 'rules']
  * `unconfirmed_reason`. A reason this package does not know prints as plain `unconfirmed`, never as
  * a `fails` — the server has already said it does not block.
  */
-const UNCONFIRMED_WORDS: Record<string, string> = { model_check: 'unconfirmed (model check)' }
+const UNCONFIRMED_WORDS: Record<string, string> = {
+    model_check: 'unconfirmed (model check)',
+    unstated_input: 'unconfirmed (unstated split)',
+}
 
 /** What an agent is told to do with an unconfirmed line, printed beside it. */
 export const UNCONFIRMED_ADVICE = 'verify before building for it'

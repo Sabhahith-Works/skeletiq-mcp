@@ -167,9 +167,11 @@ export const RequirementLedgerRowSchema = z.looseObject({
      * `requirementBlocksHandoff` falls back to the method. */
     blocks_handoff: z.boolean().optional(),
     /** Why a `fails` does not block: `model_check` — only the model check failed it, nothing
-     * measured it. Null on every other row. A string, for the reason `status` is one. Absent from
-     * older APIs. */
+     * measured it; `unstated_input` — a capacity shortfall that turns on an input nobody stated.
+     * Null on every other row. A string, for the reason `status` is one. Absent from older APIs. */
     unconfirmed_reason: z.string().nullable().optional(),
+    /** The assumption an `unstated_input` row turns on, as a clause. Absent from older APIs. */
+    unstated_input: z.string().nullable().optional(),
     cited_by_components: z.array(z.string()).nullable().optional(),
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),

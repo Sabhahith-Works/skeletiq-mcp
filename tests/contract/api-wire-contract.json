@@ -1602,6 +1602,12 @@
           "nullable": true,
           "item": null
         },
+        "unstated_input": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "verdict": {
           "required": false,
           "kind": "scalar",

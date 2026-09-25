@@ -286,6 +286,10 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         // nothing, on a design that reports `ready: false`. The verdict is what
                         // separates the two reasons a design is not ready.
                         const unanswered = gates.filter((row) => row.state === 'unknown')
+                        // A gate that measured a shortfall resting on an input nobody stated (an even
+                        // split between entrances, traffic weights that do not add up). It never
+                        // blocks, so it is in neither list above — and it is not "not checked".
+                        const unconfirmedGates = gates.filter((row) => row.state === 'unconfirmed')
                         // Three categories, not two. An `accept` row is something a person agrees
                         // to — an assumption the design made, a decision waiting to be written
                         // down — and filing it under "some need a paid plan to clear" was wrong
@@ -307,6 +311,11 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         return ok({ ...base, ...facts, data: readiness }, [
                             headline,
                             ...listed.map((row) => `- ${row.label}: ${describeRow(row)}`),
+                            ...(unconfirmedGates.length
+                                ? ['',
+                                   'Unconfirmed (the check ran, but its answer turns on an input nobody stated; never blocks):',
+                                   ...unconfirmedGates.map((row) => `- ${row.label}: ${describeRow(row)}`)]
+                                : []),
                             ...(accepts.length
                                 ? ['',
                                    'To accept (the person agrees to these rather than fixing them; accepting is free ' +
@@ -462,7 +471,7 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
         'contradicted it, which is not the same as proven; `not_checked` / `not_checkable` — nobody',
         'established either way, and neither is fine. `cited by nothing` means no component and no',
         'decision in the design claims to address it.',
-        ...(unconfirmed > 0 ? UNCONFIRMED_LEGEND : []),
+        ...unconfirmedLegend(rows),
         // Two facts about how far the statuses can be trusted, said only when the server states
         // them. An absent `verification_state` is an older server, not a verifier that did not run,
         // and claiming the second would be this package inventing a fact about someone's design.
@@ -483,11 +492,24 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
     ]
 }
 
-/** Said under a list only when a row in it is unconfirmed, so the word never goes unexplained. */
-const UNCONFIRMED_LEGEND = [
-    '`unconfirmed (model check)` — only a model check says the design may not meet it. Nothing',
-    `measured it, so it does not block handoff: ${UNCONFIRMED_ADVICE} rather than adding a part.`,
-]
+/**
+ * Said under a list only when a row in it is unconfirmed, one entry per reason present, so the word
+ * never goes unexplained.
+ */
+function unconfirmedLegend(rows: RequirementLedgerRow[]): string[] {
+    const reasons = new Set(rows.filter(isUnconfirmedRequirement).map((row) => row.unconfirmed_reason ?? 'model_check'))
+    return [
+        ...(reasons.has('model_check')
+            ? ['`unconfirmed (model check)` — only a model check says the design may not meet it. Nothing',
+               `measured it, so it does not block handoff: ${UNCONFIRMED_ADVICE} rather than adding a part.`]
+            : []),
+        ...(reasons.has('unstated_input')
+            ? ['`unconfirmed (unstated split)` — capacity falls short only under an assumption nobody stated',
+               '(the rate split evenly between entrances, or traffic weights that do not add up); split the',
+               'most favourable way it would hold. It does not block handoff: ask how the traffic divides.']
+            : []),
+    ]
+}
 
 /**
  * The requirements the design cites this component against.
@@ -505,7 +527,7 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
         ...rows.map(requirementLine),
         '`fails` — a named check measured the design as not meeting it; `not_checked` — nobody',
         'established either way; `no_gap_found` — nothing contradicted it, which is not the same as proven.',
-        ...(rows.some(isUnconfirmedRequirement) ? UNCONFIRMED_LEGEND : []),
+        ...unconfirmedLegend(rows),
     ]
 }
 
@@ -618,5 +640,6 @@ function todoLine(item: TodoItem): string {
 
 function describeRow(row: { count: number; state: string; detail?: string | null }): string {
     if (row.state === 'unknown') return `not checked${row.detail ? ` — ${row.detail}` : ''}`
+    if (row.state === 'unconfirmed') return `unconfirmed${row.detail ? ` — ${row.detail}` : ''}`
     return `${row.count}${row.detail ? ` — ${row.detail}` : ''}`
 }

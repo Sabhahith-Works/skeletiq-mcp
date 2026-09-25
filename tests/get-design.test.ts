@@ -515,6 +515,33 @@ describe('the requirements a design was built from', () => {
         expect(component).toMatch(/Nothing\nmeasured it, so it does not block handoff/)
     })
 
+    it('reads a capacity line that turns on an unstated split as unconfirmed, and says what that means', async () => {
+        await withLedger({
+            rows: [
+                {
+                    id: 'R2',
+                    text: 'Ingest 50,000 clicks per second.',
+                    verdict: 'fails',
+                    check_method: 'simulation',
+                    verdict_reason: 'Holds 40,600/s, short of the 50,000/s this asks for.',
+                    blocks_handoff: false,
+                    unconfirmed_reason: 'unstated_input',
+                    unstated_input: 'the rate is split evenly between Ad Servers and Advertiser Users',
+                    cited_by_components: ['api'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('Requirements — 1 total; 1 unconfirmed:')
+        expect(body).toContain(
+            '- R2 [unconfirmed (unstated split) — verify before building for it] Ingest 50,000 clicks per second.',
+        )
+        expect(body).toMatch(/`unconfirmed \(unstated split\)` — capacity falls short only under an assumption nobody stated/)
+        expect(body).not.toMatch(/`unconfirmed \(model check\)`/)
+    })
+
     it('takes the server\'s word on what blocks over its own reading of the method', async () => {
         await withLedger({
             rows: [
@@ -1279,6 +1306,43 @@ describe('readiness and gaps', () => {
         // has no result — not that nothing ever ran.
         expect(text(result)).toMatch(/Advisor suggestions open: not checked \(no result for this version\)/)
         expect(text(result)).not.toMatch(/never run/)
+    })
+
+    it('lists a load gate that rests on an unstated split as unconfirmed, apart from the open gates', async () => {
+        // A stated load the design falls short of only because the rate was split evenly between
+        // two entrances nobody said how to divide. It never blocks, and it is not "not checked".
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    ready: true,
+                    verdict: 'ready',
+                    unknown_gate_count: 0,
+                    unrun_checks: [],
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 0, state: 'clear', category: 'gate', gating: false },
+                        {
+                            key: 'stated_load',
+                            label: 'Short of the stated load',
+                            count: 0,
+                            state: 'unconfirmed',
+                            category: 'gate',
+                            gating: false,
+                            detail: 'Holds about 40,600/s, short of the 50,000/s you stated. That rests on an input nobody stated.',
+                        },
+                    ],
+                    release: RELEASE_FACTS,
+                },
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+
+        expect(body).toMatch(/Every gate is clear/)
+        expect(body).toMatch(/Unconfirmed \(the check ran, but its answer turns on an input nobody stated; never blocks\):/)
+        expect(body).toMatch(/- Short of the stated load: unconfirmed — Holds about 40,600\/s, short of the 50,000\/s you stated/)
     })
 
     it('passes on the server\'s reason for an unanswered advisory instead of guessing one', async () => {
