@@ -343,10 +343,22 @@ function refusalQuestions(refusal: DecisionRefusal | undefined) {
         id: question.id,
         question: question.question,
         why: question.why ?? '',
-        options: (question.options ?? []).filter(
-            (option) => !(question.decline_options ?? []).includes(option),
-        ),
+        options: answerOptions(question),
     }))
+}
+
+/**
+ * The options an agent may send back as an answer: not the ones that decline the question, and
+ * not the ones that withdraw the instruction ("I'll name the parts" means rewrite the prompt to
+ * name them — sent as an answer it is read as no answer, and the change keeps its narrowest scope).
+ */
+function answerOptions(question: {
+    options?: string[] | null
+    decline_options?: string[] | null
+    dismiss_options?: string[] | null
+}): string[] {
+    const excluded = new Set([...(question.decline_options ?? []), ...(question.dismiss_options ?? [])])
+    return (question.options ?? []).filter((option) => !excluded.has(option))
 }
 
 /**
@@ -425,7 +437,7 @@ function clarificationResult(questions: ClarifyingQuestion[]) {
         id: question.id,
         question: question.question,
         why: question.why ?? '',
-        options: (question.options ?? []).filter((option) => !(question.decline_options ?? []).includes(option)),
+        options: answerOptions(question),
     }))
 
     const lines = [

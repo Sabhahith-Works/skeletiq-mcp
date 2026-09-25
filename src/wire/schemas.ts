@@ -595,6 +595,8 @@ export const ClarifyingQuestionSchema = z.looseObject({
     kind: z.string().optional(),
     options: z.array(z.string()).nullable().optional(),
     decline_options: z.array(z.string()).nullable().optional(),
+    /** Options that withdraw the instruction to be rewritten, not answer it ("I'll name the parts"). */
+    dismiss_options: z.array(z.string()).nullable().optional(),
 })
 export type ClarifyingQuestion = z.infer<typeof ClarifyingQuestionSchema>
 

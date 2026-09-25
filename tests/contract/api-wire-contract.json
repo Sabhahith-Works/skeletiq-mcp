@@ -392,6 +392,12 @@
           "nullable": true,
           "item": null
         },
+        "dismiss_options": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": null
+        },
         "id": {
           "required": true,
           "kind": "scalar",

@@ -20,6 +20,14 @@ new version.
 
 ### Changed
 
+- **A follow-up that names no part may be asked which parts it may change.** SkeletIQ now changes
+  only the parts a follow-up names and keeps the rest as it was. An instruction that changes the
+  design without naming anything ("make it more resilient") comes back as a `clarification_required`
+  answer with one question, `change_scope`. Answer `Any part may change` to let the turn touch every
+  part, or name the parts in the answer. The question's new `dismiss_options` field marks the option
+  that means "rewrite the instruction instead" (`I'll name the parts`). The connector reads it and
+  leaves it out of the answers it offers, the same way it leaves out `decline_options`: sent as an
+  answer, it would run the change with nothing it may touch.
 - **A requirement only a model check failed reads as unconfirmed, not failing.** SkeletIQ checks
   each requirement by capacity, cost, its review rules, or — where none of those applies — a
   language model reading the design. Only the first three are measurements, and the server now

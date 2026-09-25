@@ -277,6 +277,38 @@ describe('a prompt too vague to design from', () => {
         expect(joined(result)).not.toMatch(/Not sure yet/)
     })
 
+    it('leaves an option that withdraws the instruction out of the answers it offers', async () => {
+        const scope = {
+            error: {
+                ...CLARIFY_409.error,
+                detail: {
+                    ...CLARIFY_409.error.detail,
+                    clarifying_questions: [
+                        {
+                            id: 'change_scope',
+                            question: 'This names no part of the design. Which parts may it change?',
+                            why: 'A follow-up changes only the parts it names.',
+                            kind: 'scope',
+                            options: ['Any part may change', "I'll name the parts"],
+                            dismiss_options: ["I'll name the parts"],
+                        },
+                    ],
+                },
+            },
+        }
+        const api = fakeApi(
+            baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', status: 409, body: scope }]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'Make it more resilient' })
+
+        // "I'll name the parts" means rewrite the prompt to name them. Sent as an answer it is no
+        // answer, and the change would run with nothing it may touch.
+        const questions = result.structuredContent?.clarifying_questions as { options: string[] }[]
+        expect(questions[0]?.options).toEqual(['Any part may change'])
+    })
+
     it('refuses the queued path the same way it refuses the inline one', async () => {
         // The two endpoints take the same request and refuse it the same way. A recovery path
         // present on one and missing on the other is how a background run comes to lose what the
