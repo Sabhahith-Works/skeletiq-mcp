@@ -384,6 +384,17 @@ export const DesignGapSchema = z.looseObject({
     /** An answer is recorded and this version was not built with it, so iterating the design
      * would change something. False once a generation has been handed the answer. */
     answer_pending: z.boolean().optional(),
+    /** The read/write mix or peak this assumption states that the design is not sized on. Null when
+     * the two agree; absent from older servers. */
+    sizing_conflict: z
+        .looseObject({
+            dimension: z.string(),
+            assumed: z.string(),
+            sized: z.string(),
+            resize_to: z.string().nullable().optional(),
+        })
+        .nullable()
+        .optional(),
 })
 
 /**

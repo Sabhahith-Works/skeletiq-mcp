@@ -1409,6 +1409,35 @@ describe('readiness and gaps', () => {
         expect(text(result)).toMatch(/Traffic is read-heavy\.? → confirmed as it stands/)
     })
 
+    it('says when an assumption is not what the design is sized on', async () => {
+        await open([
+            {
+                match: `GET /api/v1/projects/${PROJECT_ID}/design-gaps`,
+                body: {
+                    project_id: PROJECT_ID,
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    gaps: [
+                        {
+                            gap_id: 'a1',
+                            kind: 'assumption',
+                            text: 'The read/write mix is approximately 70% reads and 30% writes.',
+                            resolved: false,
+                            sizing_conflict: { dimension: 'read_write_mix', assumed: '70% reads', sized: '80% reads', resize_to: '70% reads' },
+                        },
+                        { gap_id: 'b2', kind: 'assumption', text: 'Single tenant.', resolved: false, sizing_conflict: null },
+                    ],
+                    unresolved_count: 2,
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'gaps' })
+
+        expect(text(result)).toMatch(/30% writes\. \(this design is sized for 80% reads, not 70% reads\)/)
+        expect(text(result)).toMatch(/Single tenant\.\n/)
+    })
+
     it('reports what was settled during review, because that is the answer', async () => {
         await open([
             {

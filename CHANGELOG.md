@@ -20,6 +20,12 @@ new version.
 
 ### Changed
 
+- **An assumption the design is not sized on says so.** SkeletIQ now checks each assumption that
+  states the whole system's read/write mix or peak against the figure the design is sized on. The
+  `design-gaps` answer carries a new `sizing_conflict` field on such an assumption (what it states,
+  what the design is sized on), and `get_design` in `gaps` mode prints it beside the assumption:
+  "(this design is sized for 80% reads, not 70% reads)". An agent should build to the sizing, not
+  the assumption. New designs leave such assumptions out unless a person accepted them.
 - **A follow-up that names no part may be asked which parts it may change.** SkeletIQ now changes
   only the parts a follow-up names and keeps the rest as it was. An instruction that changes the
   design without naming anything ("make it more resilient") comes back as a `clarification_required`

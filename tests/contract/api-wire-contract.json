@@ -818,6 +818,12 @@
           "nullable": false,
           "item": null
         },
+        "sizing_conflict": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "DesignGapSizingConflict"
+        },
         "text": {
           "required": true,
           "kind": "scalar",

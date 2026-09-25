@@ -395,10 +395,10 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             unresolved.length === 0
                                 ? 'Every open question and assumption in this design has been dealt with.'
                                 : `${unresolved.length} unresolved:`,
-                            ...unresolved.map((gap) => `- [${gap.kind}] ${gap.text}`),
+                            ...unresolved.map((gap) => `- [${gap.kind}] ${gap.text}${sizingNote(gap)}`),
                             ...(settled.length > 0
                                 ? ['', `${settled.length} settled during review — treat these as decided:`,
-                                   ...settled.map((gap) => `- [${gap.kind}] ${gap.text} → ${settledAnswer(gap)}`)]
+                                   ...settled.map((gap) => `- [${gap.kind}] ${gap.text} → ${settledAnswer(gap)}${sizingNote(gap)}`)]
                                 : []),
                             // A gap is identified by a hash of its own text, so a regeneration that
                             // re-words a question strands the answer that settled it. The server
@@ -605,6 +605,16 @@ function settledAnswer(gap: { action?: string | null; note?: string | null; adr_
     if (note) return note
     if (gap.action === 'confirmed') return 'confirmed as it stands'
     return 'answered, but no wording was recorded — ask before relying on it'
+}
+
+/**
+ * Said beside an assumption whose mix or peak the design is not sized on. The figure it states is
+ * not the one the design was built, simulated and priced at, whatever its disposition: accepted,
+ * it is a person's decision still waiting for the next version; open, it is the model's guess.
+ */
+function sizingNote(gap: { sizing_conflict?: { sized: string; assumed: string } | null }): string {
+    const conflict = gap.sizing_conflict
+    return conflict ? ` (this design is sized for ${conflict.sized}, not ${conflict.assumed})` : ''
 }
 
 /**
