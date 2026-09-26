@@ -497,7 +497,12 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
  * never goes unexplained.
  */
 function unconfirmedLegend(rows: RequirementLedgerRow[]): string[] {
-    const reasons = new Set(rows.filter(isUnconfirmedRequirement).map((row) => row.unconfirmed_reason ?? 'model_check'))
+    const words = new Set(rows.filter(isUnconfirmedRequirement).map(requirementVerdict))
+    const reasons = new Set(
+        rows
+            .filter((row) => isUnconfirmedRequirement(row) && requirementVerdict(row) !== 'unconfirmed (assumed load)')
+            .map((row) => row.unconfirmed_reason ?? 'model_check'),
+    )
     return [
         ...(reasons.has('model_check')
             ? ['`unconfirmed (model check)` — only a model check says the design may not meet it. Nothing',
@@ -508,6 +513,11 @@ function unconfirmedLegend(rows: RequirementLedgerRow[]): string[] {
                '(the rate split evenly between entrances, or traffic weights that do not add up). Its reason',
                'names the split the design would need — judge whether that is realistic. It does not block',
                'handoff: ask how the traffic divides.']
+            : []),
+        ...(words.has('unconfirmed (assumed load)')
+            ? ['`unconfirmed (assumed load)` — the verdict rests on the load, which was assumed: nobody said how',
+               'much traffic to expect, so the design was sized and priced on the typical load for this kind of',
+               'system. It does not block handoff: ask your human for their load rather than guessing one.']
             : []),
     ]
 }

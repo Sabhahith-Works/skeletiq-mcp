@@ -544,6 +544,32 @@ describe('the requirements a design was built from', () => {
         expect(body).not.toMatch(/`unconfirmed \(model check\)`/)
     })
 
+    it('reads a budget line that rests on an assumed load as its own kind of unconfirmed', async () => {
+        await withLedger({
+            rows: [
+                {
+                    id: 'R6',
+                    text: 'Operate under a budget of $150 per month.',
+                    verdict: 'fails',
+                    check_method: 'cost',
+                    verdict_reason: 'About $7,791/mo, over the $150 this allows.',
+                    blocks_handoff: false,
+                    unconfirmed_reason: 'unstated_input',
+                    unstated_input: 'the load, which was assumed',
+                    cited_by_components: ['api'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('- R6 [unconfirmed (assumed load) — verify before building for it] Operate under a budget of $150 per month.')
+        expect(body).toMatch(/`unconfirmed \(assumed load\)` — the verdict rests on the load, which was assumed/)
+        expect(body).toMatch(/ask your human for their load rather than guessing one/)
+        // The split's legend is for a different cause and is not printed for this one.
+        expect(body).not.toMatch(/`unconfirmed \(unstated split\)`/)
+    })
+
     it('takes the server\'s word on what blocks over its own reading of the method', async () => {
         await withLedger({
             rows: [

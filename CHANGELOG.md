@@ -20,6 +20,12 @@ new version.
 
 ### Changed
 
+- **A requirement that rests on an assumed load says so.** When nobody said how much traffic to
+  expect, SkeletIQ sizes and prices a design on the typical load for its kind of system, and a budget
+  or capacity line that fails on that load no longer blocks handoff. `get_design` prints such a line
+  as `unconfirmed (assumed load)` — until now it read `unconfirmed (unstated split)`, which names a
+  different cause — and explains it once under the list: ask your human for their load rather than
+  guessing one.
 - **A readiness check that could not be answered says what would answer it.** When the server
   reports what would settle an unanswered check (`clears`, for example "Saving a change runs it on
   the new version."), `get_design` in readiness mode prints it after the reason, so an agent can

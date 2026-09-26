@@ -174,6 +174,14 @@ const UNCONFIRMED_WORDS: Record<string, string> = {
     unstated_input: 'unconfirmed (unstated split)',
 }
 
+/**
+ * The clause an `unstated_input` row carries when the input nobody gave is the load itself: nobody
+ * said how much traffic to expect, so the design was sized and priced on a typical one. The server
+ * writes it verbatim, and SkeletIQ's API tests pin this copy to it; any other clause is a split.
+ */
+export const ASSUMED_LOAD_INPUT = 'the load, which was assumed'
+const ASSUMED_LOAD_WORD = 'unconfirmed (assumed load)'
+
 /** What an agent is told to do with an unconfirmed line, printed beside it. */
 export const UNCONFIRMED_ADVICE = 'verify before building for it'
 
@@ -201,6 +209,7 @@ export function requirementVerdict(row: RequirementLedgerRow): string {
     if (method === CITATION_ONLY_METHOD) return ''
     // An older server sends no reason; its non-blocking `fails` can only be the model check's.
     const reason = row.unconfirmed_reason ?? 'model_check'
+    if (reason === 'unstated_input' && row.unstated_input?.trim() === ASSUMED_LOAD_INPUT) return ASSUMED_LOAD_WORD
     return UNCONFIRMED_WORDS[reason] ?? 'unconfirmed'
 }
 
