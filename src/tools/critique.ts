@@ -44,10 +44,10 @@ const input = z.object({
         .optional()
         .describe(
             'Further domains the design spans, when it spans more than one — a multi-tenant shop ' +
-                'that takes payments is e-commerce plus fintech and saas. These select frameworks on ' +
-                "top of the primary domain's, so leaving them off is why a design already checked " +
-                'against SOC2 and SOX in the app comes back here checked against neither, and scored ' +
-                'higher for it. frameworks_checked says which were actually used.',
+                'that takes payments is e-commerce plus fintech and saas. These add the design checks ' +
+                "that domain usually needs, as advice; they select no compliance frameworks. Only the " +
+                "primary domain's frameworks and the ones the user named are checked, so name a " +
+                'framework in the prompt when it must apply. frameworks_checked says which were used.',
         ),
     exposure: z
         .enum(['public_internet', 'private_network', 'air_gapped'])
