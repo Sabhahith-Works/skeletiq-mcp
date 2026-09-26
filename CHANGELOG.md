@@ -20,6 +20,12 @@ new version.
 
 ### Changed
 
+- **A readiness check that could not be answered says what would answer it.** When the server
+  reports what would settle an unanswered check (`clears`, for example "Saving a change runs it on
+  the new version."), `get_design` in readiness mode prints it after the reason, so an agent can
+  act on the check rather than only report it. The To do list's new "Couldn't check yet" group is
+  printed by its label like any other, and each card's `counts_toward` (the readiness row it is
+  counted on) is accepted.
 - **`secondary_domains` no longer selects compliance frameworks.** A design is checked against the
   frameworks its primary domain usually needs plus the ones the user named; further domains add that
   domain's design checks as advice only. The `critique_design` description says so. `frameworks_checked`

@@ -329,6 +329,9 @@ export const ReadinessRowSchema = z.looseObject({
     category: z.string(),
     gating: z.boolean(),
     detail: z.string().nullable().optional(),
+    /** On a row that could not be answered: what would answer it ("Saving a change runs the
+     * check on the new version."). Absent on a row that has an answer. */
+    clears: z.string().nullable().optional(),
 })
 
 export const ReadinessSchema = z.looseObject({
@@ -537,6 +540,9 @@ export const TodoItemSchema = z.looseObject({
     carried_from_version: z.number().nullable().optional(),
     dismissed: z.boolean().optional(),
     dismissed_reason: z.string().nullable().optional(),
+    /** The key of the one readiness row this card is counted on, so the readiness counts can be
+     * traced to cards. Null on a card no row counts. */
+    counts_toward: z.string().nullable().optional(),
 })
 export type TodoItem = z.infer<typeof TodoItemSchema>
 

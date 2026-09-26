@@ -1284,12 +1284,13 @@ describe('readiness and gaps', () => {
                     version: 2,
                     ready: false,
                     verdict: 'unanswered',
-                    unknown_gate_count: 1,
+                    unknown_gate_count: 2,
                     unrun_checks: ['advisor_pending'],
                     rows: [
                         { key: 'open_questions', label: 'Open questions unanswered', count: 0, state: 'clear', category: 'gate', gating: false },
                         { key: 'release_blockers', label: 'Release blockers', count: 1, state: 'unknown', category: 'gate', gating: false, detail: 'Computed for version 4, not this one' },
                         { key: 'advisor_pending', label: 'Advisor suggestions open', count: 0, state: 'unknown', category: 'advisory', gating: false },
+                        { key: 'stated_load', label: 'Load checked', count: 0, state: 'unknown', category: 'gate', gating: false, detail: 'No run for this version', clears: 'Saving a change runs it on the new version.' },
                     ],
                     release: RELEASE_FACTS,
                 },
@@ -1298,8 +1299,10 @@ describe('readiness and gaps', () => {
 
         const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' })
 
+        // An unanswered row says what would answer it when the server does.
+        expect(text(result)).toMatch(/Load checked: not checked — No run for this version\. Saving a change runs it on the new version\./)
         expect(text(result)).not.toMatch(/0 of \d+ gate\(s\) still open/)
-        expect(text(result)).toMatch(/1 check\(s\) could not be answered for this version/)
+        expect(text(result)).toMatch(/2 check\(s\) could not be answered for this version/)
         // And it names which one, with the version it actually answered for.
         // Up to 0.2.0 the server's reason was dropped for every unanswered row, so this line
         // claimed a version it never printed.

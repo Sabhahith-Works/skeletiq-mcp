@@ -1311,6 +1311,12 @@
           "nullable": false,
           "item": null
         },
+        "clears": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "count": {
           "required": true,
           "kind": "scalar",
@@ -1894,6 +1900,12 @@
           "required": false,
           "kind": "list",
           "nullable": false,
+          "item": null
+        },
+        "counts_toward": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
           "item": null
         },
         "detail": {

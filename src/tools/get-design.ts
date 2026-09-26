@@ -649,8 +649,13 @@ function todoLine(item: TodoItem): string {
     return `- ${severity}${item.title.replace(/\s+/g, ' ').trim()}${components}${raised}${carried}`
 }
 
-function describeRow(row: { count: number; state: string; detail?: string | null }): string {
-    if (row.state === 'unknown') return `not checked${row.detail ? ` — ${row.detail}` : ''}`
+function describeRow(row: { count: number; state: string; detail?: string | null; clears?: string | null }): string {
+    if (row.state === 'unknown') {
+        // What would answer it, when the server says: an agent can act on that, not only report it.
+        const clears = row.clears ? ` ${row.clears}` : ''
+        const detail = row.detail ? ` — ${row.detail}${clears && !/[.!?]$/.test(row.detail) ? '.' : ''}` : clears ? ' —' : ''
+        return `not checked${detail}${clears}`
+    }
     if (row.state === 'unconfirmed') return `unconfirmed${row.detail ? ` — ${row.detail}` : ''}`
     return `${row.count}${row.detail ? ` — ${row.detail}` : ''}`
 }
