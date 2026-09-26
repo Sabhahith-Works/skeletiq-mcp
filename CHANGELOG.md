@@ -20,6 +20,20 @@ new version.
 
 ### Changed
 
+- **A first design that states no load is asked for one, and "Not sure yet" is a valid answer.**
+  SkeletIQ now asks before designing when a new design's prompt states no load — no request rate,
+  no fleet (how many devices, and how often each reports) and no volume ("2 million orders a day").
+  A headcount alone ("150,000 employees") is not a load. The answer comes back as
+  `clarification_required` with one question, `scale`: "What load should this be sized for?". Its
+  options are "Not sure yet" and five bands, from about 5 to about 50,000 requests a second. The
+  question's new `option_details` field gives each option a label and a line saying what it means,
+  and the new `skip_effect` says what leaving it unanswered does. The connector prints both. "Not
+  sure yet" is now listed as an answer, not a decline, so the connector offers it: the design is
+  then sized on a typical load for its kind of system and marked assumed. The `generate_architecture`
+  description now tells an agent to ask its human for the load first, to answer "Not sure yet" when
+  they do not know it, and never to guess a band. This replaces "there is no way to skip the
+  questions". A clarifying question may also carry `multiple` (more than one option may be picked);
+  the connector accepts the field, and no question sets it yet.
 - **An assumption the design is not sized on says so.** SkeletIQ now checks each assumption that
   states the whole system's read/write mix or peak against the figure the design is sized on. The
   `design-gaps` answer carries a new `sizing_conflict` field on such an assumption (what it states,

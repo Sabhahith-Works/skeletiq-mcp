@@ -599,6 +599,17 @@ export const DriftSchema = z.looseObject({
  * Deterministic and template-based server-side — no model writes these — so the `id` is stable
  * and is the key an answer must be sent back under.
  */
+/**
+ * One option as a reader sees it: the value to send back, what it reads as, and what picking it
+ * means. `value` is always one of the question's `options`, which stay the answer values.
+ */
+export const ClarifyingOptionDetailSchema = z.looseObject({
+    value: z.string(),
+    label: z.string(),
+    detail: z.string().optional(),
+})
+export type ClarifyingOptionDetail = z.infer<typeof ClarifyingOptionDetailSchema>
+
 export const ClarifyingQuestionSchema = z.looseObject({
     id: z.string(),
     question: z.string(),
@@ -608,6 +619,12 @@ export const ClarifyingQuestionSchema = z.looseObject({
     decline_options: z.array(z.string()).nullable().optional(),
     /** Options that withdraw the instruction to be rewritten, not answer it ("I'll name the parts"). */
     dismiss_options: z.array(z.string()).nullable().optional(),
+    /** Each option's label and what it means, keyed by the value in `options`. */
+    option_details: z.array(ClarifyingOptionDetailSchema).nullable().optional(),
+    /** Whether more than one option may be picked at once. */
+    multiple: z.boolean().optional(),
+    /** What leaving the question unanswered does, in the product's words. */
+    skip_effect: z.string().nullable().optional(),
 })
 export type ClarifyingQuestion = z.infer<typeof ClarifyingQuestionSchema>
 

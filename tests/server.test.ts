@@ -36,6 +36,20 @@ describe('the tool surface', () => {
         const tools = await harness.listTools()
         expect(tools.find((tool) => tool.name === 'get_design')?.description).toMatch(/brief/i)
     })
+
+    it('tells an agent to ask for the load, and to answer "Not sure yet" rather than guess one', async () => {
+        harness = await startHarness(fakeApi(baseRoutes()).fetch)
+        const tools = await harness.listTools()
+        const description = tools.find((tool) => tool.name === 'generate_architecture')?.description ?? ''
+
+        expect(description).toMatch(/states no load/)
+        expect(description).toMatch(/Ask your human for the load first/)
+        expect(description).toMatch(/"Not sure yet"/)
+        expect(description).toMatch(/marked assumed/)
+        expect(description).toMatch(/Never guess a load/)
+        // Replaced: an agent may now answer the load question without a figure.
+        expect(description).not.toMatch(/no way to skip/)
+    })
 })
 
 describe('the instructions', () => {

@@ -45,6 +45,12 @@ const PROGRESS_LABELS: Record<string, string> = {
 const PROGRESS_TOTAL = Object.keys(PROGRESS_LABELS).length + 1
 
 /**
+ * The load question's answer for a human who does not know the load. The server lists it as an
+ * answer, not a decline: the design is sized on a typical load and marked assumed.
+ */
+const LOAD_NOT_SURE = 'Not sure yet'
+
+/**
  * Where a figure in a progress line came from.
  *
  * The vocabulary is the server's `rps_source`, mirrored the way everything in `wire/` is
@@ -175,7 +181,8 @@ const generateInput = z.object({
         .describe(
             'Answers to the questions a previous call returned with status "clarification_required", ' +
                 'keyed by their ids. Treated as authoritative requirements, so send what the user told ' +
-                'you — ask them rather than guessing.',
+                'you — ask them rather than guessing. "Not sure yet" is a real answer to the load ' +
+                'question when they do not know the load.',
         ),
     constraints: constraintsInput
         .optional()
@@ -249,12 +256,16 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
                 'Design a system architecture from a prompt. This spends the account holder\'s credits ' +
                 'and takes several minutes, so do not call it speculatively — if a design already exists, ' +
                 'read it with get_design instead. Which model runs it is the account holder\'s stored ' +
-                'setting; you do not choose it. Describe the system, what it must do, and the scale and ' +
-                'constraints it runs under. A prompt that names no system to design comes back as ' +
-                'clarification_required, and so does one that names a system but no scale to build it ' +
-                'for — how many users or requests it has to serve. Answer with clarification_answers; ' +
-                'there is no way to skip the questions, because a design built on an invented scale is ' +
-                'sized, priced and judged against a number nobody chose.',
+                'setting; you do not choose it. Describe the system, what it must do, the load it carries ' +
+                'and the constraints it runs under. A prompt that names no system to design comes back as ' +
+                'clarification_required, and so does one that states no load: a request rate ("about 300 ' +
+                'requests a second"), a fleet (how many devices, and how often each one reports) or a ' +
+                'volume ("2 million orders a day"). A headcount alone is not a load. Answer with ' +
+                'clarification_answers, keyed by the question ids. Ask your human for the load first. If ' +
+                'they do not know it, answer the load question "Not sure yet": the design is then sized ' +
+                'on a typical load for its kind of system and marked assumed. Never guess a load or pick ' +
+                'a band on their behalf — a design sized on an invented load is priced and judged ' +
+                'against a number nobody chose.',
             inputSchema: generateInput,
             outputSchema: generateOutput,
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -308,7 +319,7 @@ export function registerGenerate(server: McpServer, client: SkeletiqClient, reso
                     error: job.error ?? null,
                     queue_state: job.queue_state ?? null,
                     refusal_code: refusal?.code ?? null,
-                    clarifying_questions: questions,
+                    clarifying_questions: questions.map(structuredQuestion),
                 }
                 // A declined run is not a failed one, and saying "failed" without saying what to
                 // do next is what made this tool a dead end for the agent as well as the browser.
@@ -339,12 +350,50 @@ function decisionRefusal(progress: unknown): DecisionRefusal | undefined {
 }
 
 function refusalQuestions(refusal: DecisionRefusal | undefined) {
-    return (refusal?.clarifying_questions ?? []).map((question) => ({
+    return (refusal?.clarifying_questions ?? []).map(offeredQuestion)
+}
+
+/**
+ * A question as the agent is offered it. The structured half keeps its four fields; the option
+ * details and the skip effect ride along for `questionLines` to print, because what "Not sure yet"
+ * does and what each load band works out to are exactly what the agent has to tell its human.
+ */
+function offeredQuestion(question: ClarifyingQuestion) {
+    const options = answerOptions(question)
+    const details = new Map((question.option_details ?? []).map((detail) => [detail.value, detail]))
+    return {
         id: question.id,
         question: question.question,
         why: question.why ?? '',
-        options: answerOptions(question),
-    }))
+        options,
+        explained: options.flatMap((option) => {
+            const detail = details.get(option)
+            if (!detail) return []
+            const said = detail.label && detail.label !== option ? `${option} (${detail.label})` : option
+            return [detail.detail ? `${said}: ${detail.detail}` : said]
+        }),
+        skipEffect: question.skip_effect ?? '',
+    }
+}
+
+type OfferedQuestion = ReturnType<typeof offeredQuestion>
+
+function structuredQuestion(question: OfferedQuestion) {
+    return { id: question.id, question: question.question, why: question.why, options: question.options }
+}
+
+/** Each question as the lines an agent reads: the question, why, and the answers it may send. */
+function questionLines(questions: OfferedQuestion[]): string[] {
+    return questions.flatMap((question) => [
+        `${question.id}: ${question.question}`,
+        ...(question.why ? [`  Why it matters: ${question.why}`] : []),
+        ...(question.explained.length > 0
+            ? ['  Answers:', ...question.explained.map((line) => `  - ${line}`)]
+            : question.options.length > 0
+              ? [`  For example: ${question.options.join(' · ')}`]
+              : []),
+        ...(question.skipEffect ? [`  If it is left unanswered: ${question.skipEffect}`] : []),
+    ])
 }
 
 /**
@@ -379,11 +428,7 @@ function refusalLines(
             return [
                 preamble,
                 '',
-                ...questions.flatMap((question) => [
-                    `${question.id}: ${question.question}`,
-                    ...(question.why ? [`  Why it matters: ${question.why}`] : []),
-                    ...(question.options.length > 0 ? [`  For example: ${question.options.join(' · ')}`] : []),
-                ]),
+                ...questionLines(questions),
                 '',
                 'Call generate_architecture again with the same prompt and clarification_answers keyed by ' +
                     'those ids. Take the answers from the user rather than inventing them.',
@@ -433,28 +478,23 @@ function clarifyingQuestions(error: unknown): ClarifyingQuestion[] | undefined {
  * the questions in the one half of a tool result that cannot carry structure.
  */
 function clarificationResult(questions: ClarifyingQuestion[]) {
-    const structured = questions.map((question) => ({
-        id: question.id,
-        question: question.question,
-        why: question.why ?? '',
-        options: answerOptions(question),
-    }))
+    const offered = questions.map(offeredQuestion)
+    const structured = offered.map(structuredQuestion)
 
     const lines = [
         'SkeletIQ will not design from this prompt yet — it is missing something the design would ' +
-            'otherwise have to invent, such as the system itself or the scale it runs at. ' +
+            'otherwise have to invent, such as the system itself or the load it carries. ' +
             'Nothing was generated and nothing was charged.',
         '',
-        ...structured.flatMap((question) => [
-            `${question.id}: ${question.question}`,
-            ...(question.why ? [`  Why it matters: ${question.why}`] : []),
-            ...(question.options.length > 0 ? [`  For example: ${question.options.join(' · ')}`] : []),
-        ]),
+        ...questionLines(offered),
         '',
         'Call generate_architecture again with the same prompt and clarification_answers keyed by ' +
             'those ids. The answers are used as authoritative requirements, so take them from the ' +
             'user rather than inventing them — and put anything you already know into constraints ' +
-            'instead, where it is used as a fact rather than as prose to interpret.',
+            'instead, where it is used as a fact rather than as prose to interpret.' +
+            (offered.some((question) => question.options.includes(LOAD_NOT_SURE))
+                ? ` If they do not know the load, answer "${LOAD_NOT_SURE}" rather than picking one.`
+                : ''),
     ]
 
     return ok(

@@ -379,6 +379,33 @@
         }
       }
     },
+    "ClarifyingOptionDetailSchema": {
+      "python_model": "app.schemas.chat.ClarifyingOptionDetail",
+      "authority": "nested",
+      "endpoints": [
+        "nested in each clarifying question's option_details"
+      ],
+      "fields": {
+        "detail": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "label": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "value": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
     "ClarifyingQuestionSchema": {
       "python_model": "app.schemas.chat.ClarifyingQuestion",
       "authority": "nested",
@@ -410,6 +437,18 @@
           "nullable": false,
           "item": null
         },
+        "multiple": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "option_details": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": "ClarifyingOptionDetail"
+        },
         "options": {
           "required": false,
           "kind": "list",
@@ -420,6 +459,12 @@
           "required": true,
           "kind": "scalar",
           "nullable": false,
+          "item": null
+        },
+        "skip_effect": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
           "item": null
         },
         "why": {

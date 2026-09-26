@@ -277,6 +277,64 @@ describe('a prompt too vague to design from', () => {
         expect(joined(result)).not.toMatch(/Not sure yet/)
     })
 
+    it('offers "Not sure yet" on the load question, with what each answer does', async () => {
+        const options = [
+            'Not sure yet',
+            'About 5 requests a second, sustained',
+            'About 500 requests a second, sustained',
+        ]
+        const load = {
+            error: {
+                ...CLARIFY_409.error,
+                detail: {
+                    ...CLARIFY_409.error.detail,
+                    clarifying_questions: [
+                        {
+                            id: 'scale',
+                            question: 'What load should this be sized for?',
+                            why: "I size caching, sharding, queues and the monthly cost on this one number.",
+                            kind: 'scale',
+                            options,
+                            option_details: [
+                                {
+                                    value: 'Not sure yet',
+                                    label: 'Not sure yet',
+                                    detail: "I'll use a typical load for this kind of system and mark it assumed.",
+                                },
+                                {
+                                    value: 'About 5 requests a second, sustained',
+                                    label: 'Internal tool · about 5 requests a second',
+                                    detail: 'Around 430,000 requests a day, steady.',
+                                },
+                                {
+                                    value: 'About 500 requests a second, sustained',
+                                    label: 'Popular app · about 500 requests a second',
+                                    detail: 'Around 43 million requests a day, steady.',
+                                },
+                            ],
+                            multiple: false,
+                            skip_effect: "I'll use a typical load for this kind of system and mark it assumed.",
+                        },
+                    ],
+                },
+            },
+        }
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', status: 409, body: load }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A payroll system for 150,000 employees' })
+
+        // "Not sure yet" is not a decline here: it is the answer an agent sends when its human does
+        // not know the load, and the design is then sized on a typical one and marked assumed.
+        const questions = result.structuredContent?.clarifying_questions as { options: string[] }[]
+        expect(questions[0]?.options).toEqual(options)
+        expect(Object.keys(questions[0] ?? {}).sort()).toEqual(['id', 'options', 'question', 'why'])
+        const text = joined(result)
+        expect(text).toMatch(/About 500 requests a second, sustained \(Popular app · about 500 requests a second\): Around 43 million/)
+        expect(text).toMatch(/If it is left unanswered: I'll use a typical load/)
+        expect(text).toMatch(/answer "Not sure yet" rather than picking one/)
+    })
+
     it('leaves an option that withdraws the instruction out of the answers it offers', async () => {
         const scope = {
             error: {
