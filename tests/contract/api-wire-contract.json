@@ -1317,6 +1317,12 @@
           "nullable": true,
           "item": null
         },
+        "clears_by_load": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "count": {
           "required": true,
           "kind": "scalar",
