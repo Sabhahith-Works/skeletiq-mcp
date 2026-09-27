@@ -336,6 +336,9 @@ export const ReadinessRowSchema = z.looseObject({
     /** On a row that could not be answered: what would answer it ("Saving a change runs the
      * check on the new version."). Absent on a row that has an answer. */
     clears: z.string().nullable().optional(),
+    /** True when stating the expected load is what would answer this row — `clears` then says
+     * how. Optional so a server that predates the field still parses. */
+    clears_by_load: z.boolean().optional(),
 })
 
 export const ReadinessSchema = z.looseObject({
