@@ -55,7 +55,7 @@ new version.
   counted on) is accepted.
 - **`secondary_domains` no longer selects compliance frameworks.** A design is checked against the
   frameworks its primary domain usually needs plus the ones the user named; further domains add that
-  domain's design checks as advice only. The `critique_design` description says so. `frameworks_checked`
+  domain's design checks as advice only. The `critique_architecture` description says so. `frameworks_checked`
   still lists exactly what was checked.
 - **A first design that states no load is asked for one, and "Not sure yet" is a valid answer.**
   SkeletIQ now asks before designing when a new design's prompt states no load — no request rate,

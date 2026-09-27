@@ -89,6 +89,9 @@ function asText(value: unknown): string | undefined {
  * the user count otherwise — because `scale_source` describes *that* figure and no other.
  * Labelling the wrong one would be worse than labelling neither.
  */
+/** A number and nothing else, as the server formats one: "2,222", "1.5", "~500". */
+const BARE_FIGURE = /^~?\d[\d,]*(\.\d+)?$/
+
 function frameDetail(frame: SseFrame): string | undefined {
     const data = asRecord(frame.pipeline_step)
     if (!data) return undefined
@@ -98,8 +101,9 @@ function frameDetail(frame: SseFrame): string | undefined {
     if (domain) parts.push(domain)
 
     const rps = asText(data.requests_per_second)
-    // "/s" — the vocabulary's dense-header unit; never "RPS" or "rps".
-    const figure = rps ? `${rps}/s` : asText(data.scale)
+    // "/s" — the vocabulary's dense-header unit; never "RPS" or "rps". Only a bare number takes
+    // it: a figure that already carries words ("~500 at peak") would read "~500 at peak/s".
+    const figure = rps ? (BARE_FIGURE.test(rps) ? `${rps}/s` : rps) : asText(data.scale)
     if (figure) {
         const source = asText(data.scale_source)
         const label = source ? (PROVENANCE_LABELS[source] ?? source) : undefined

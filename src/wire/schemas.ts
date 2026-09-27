@@ -604,12 +604,6 @@ export const DriftSchema = z.looseObject({
 // ─── Generation ──────────────────────────────────────────────────────
 
 /**
- * One question the honesty gate asks before it will design from a vague prompt.
- *
- * Deterministic and template-based server-side — no model writes these — so the `id` is stable
- * and is the key an answer must be sent back under.
- */
-/**
  * One option as a reader sees it: the value to send back, what it reads as, and what picking it
  * means. `value` is always one of the question's `options`, which stay the answer values.
  */
@@ -620,6 +614,12 @@ export const ClarifyingOptionDetailSchema = z.looseObject({
 })
 export type ClarifyingOptionDetail = z.infer<typeof ClarifyingOptionDetailSchema>
 
+/**
+ * One question the honesty gate asks before it will design from a vague prompt.
+ *
+ * Deterministic and template-based server-side — no model writes these — so the `id` is stable
+ * and is the key an answer must be sent back under.
+ */
 export const ClarifyingQuestionSchema = z.looseObject({
     id: z.string(),
     question: z.string(),

@@ -650,6 +650,31 @@ describe('progress', () => {
         ])
     })
 
+    it('adds the unit only to a bare number', async () => {
+        // The field is normally a number, but a figure that arrives with its own words would read
+        // "~500 at peak/s" with the unit bolted on.
+        const frames = [
+            JSON.stringify({
+                type: 'analysis',
+                pipeline_step: { requests_per_second: '~500 at peak', scale_source: 'llm_inferred' },
+            }),
+            JSON.stringify({
+                type: 'generating',
+                pipeline_step: { requests_per_second: '2,222', scale_source: 'user_supplied' },
+            }),
+            DONE,
+        ]
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: frames }]))
+        harness = await startHarness(api.fetch)
+
+        const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
+
+        expect(progress.map((event) => event.message)).toEqual([
+            'Analysing requirements — ~500 at peak (read from your prompt)',
+            'Generating the design — 2,222/s (you set this)',
+        ])
+    })
+
     it('prints a provenance value it does not recognise rather than dropping it', async () => {
         // A word added server-side should be visible the day it ships. Dropping it would show a
         // figure with no label, which is exactly what an unlabelled figure must never look like.
