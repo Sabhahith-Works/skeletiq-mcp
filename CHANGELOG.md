@@ -20,6 +20,8 @@ new version.
 
 ### Changed
 
+- **A figure the user gave reads "(you set this)" in progress lines**, the words the app uses, where
+  it read "(stated)".
 - **How much data a design sends out can be stated, and "Not sure yet" answers that question
   too.** `generate_architecture`'s `constraints` accept `transfer_band` (`light` ~100 GB,
   `moderate` ~1 TB, `heavy` ~10 TB, `very_heavy` ~100 TB, `massive` ~1 PB a month) or

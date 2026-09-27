@@ -642,11 +642,11 @@ describe('progress', () => {
         const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
 
         expect(progress.map((event) => event.message)).toEqual([
-            'Analysing requirements — fintech, 5000/s (stated)',
+            'Analysing requirements — fintech, 5000/s (you set this)',
             // Repeated on the generation frame on purpose: that is the frame live for the whole
             // long stretch of the run, and a label that appears once early is a label the agent
             // has to remember rather than read.
-            'Generating the design — fintech, 5000/s (stated)',
+            'Generating the design — fintech, 5000/s (you set this)',
         ])
     })
 

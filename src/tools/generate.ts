@@ -65,7 +65,7 @@ const LOAD_NOT_SURE = 'Not sure yet'
  * day it ships.
  */
 const PROVENANCE_LABELS: Record<string, string> = {
-    user_supplied: 'stated',
+    user_supplied: 'you set this',
     llm_inferred: 'read from your prompt',
     tier_default: 'assumed',
     guardrail_clamped: 'adjusted',
