@@ -441,6 +441,37 @@ describe('a prompt too vague to design from', () => {
         expect(call?.body).not.toHaveProperty('constraints')
     })
 
+    it('carries how much data the design sends out, as a band or a figure', async () => {
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [DONE] }]))
+        harness = await startHarness(api.fetch)
+
+        await harness.call('generate_architecture', {
+            prompt: 'A video-on-demand service',
+            constraints: { transfer_band: 'heavy' },
+        })
+        await harness.call('generate_architecture', {
+            prompt: 'A podcast host',
+            constraints: { monthly_transfer_gb: 2000 },
+        })
+
+        const bodies = api.calls.filter((entry) => entry.url.includes('/generate/stream')).map((entry) => entry.body)
+        expect(bodies[0]).toMatchObject({ constraints: { transfer_band: 'heavy' } })
+        expect(bodies[1]).toMatchObject({ constraints: { monthly_transfer_gb: 2000 } })
+    })
+
+    it('rejects a transfer band the server does not have', async () => {
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [DONE] }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', {
+            prompt: 'A video-on-demand service',
+            constraints: { transfer_band: 'huge' },
+        })
+
+        expect(result.isError).toBe(true)
+        expect(api.calls.some((entry) => entry.url.includes('/generate/stream'))).toBe(false)
+    })
+
     it('rejects a constraint key the server would silently drop', async () => {
         // `ALLOWED_CONSTRAINT_KEYS` is a whitelist and everything outside it is dropped with a log
         // line and no error. A validation failure the agent can read beats a constraint that

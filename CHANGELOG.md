@@ -20,6 +20,15 @@ new version.
 
 ### Changed
 
+- **How much data a design sends out can be stated, and "Not sure yet" answers that question
+  too.** `generate_architecture`'s `constraints` accept `transfer_band` (`light` ~100 GB,
+  `moderate` ~1 TB, `heavy` ~10 TB, `very_heavy` ~100 TB, `massive` ~1 PB a month) or
+  `monthly_transfer_gb` (the same as a figure). SkeletIQ then prices data sent out to users at the
+  cloud's published per-GB rates, and the estimate stops listing data transfer as not included. A
+  first public design that serves content (video, files, downloads, a CDN) may now come back with a
+  second question, `transfer`, after the load question; "Not sure yet" is a valid answer and keeps
+  data transfer out of the price, said so. The comment that called the constraint keys "exactly"
+  the server's list now says they are a subset of it.
 - **A requirement only review advice fails says so.** A line the review's rules fail through
   advice alone no longer blocks handoff; `get_design` prints it as `unconfirmed (review advice)` and
   explains it once under the list, and the ledger row's new `advisory_only` field is accepted.

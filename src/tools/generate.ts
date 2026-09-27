@@ -45,8 +45,10 @@ const PROGRESS_LABELS: Record<string, string> = {
 const PROGRESS_TOTAL = Object.keys(PROGRESS_LABELS).length + 1
 
 /**
- * The load question's answer for a human who does not know the load. The server lists it as an
- * answer, not a decline: the design is sized on a typical load and marked assumed.
+ * The answer for a human who does not know a figure the server asks for: the load, or how much
+ * data the design sends out. The server lists it as an answer, not a decline. On the load the
+ * design is sized on a typical load and marked assumed; on data sent out, transfer is left out of
+ * the price and the estimate says so.
  */
 const LOAD_NOT_SURE = 'Not sure yet'
 
@@ -110,8 +112,9 @@ function frameDetail(frame: SseFrame): string | undefined {
 /**
  * The design facts a caller may state, rather than leave to be inferred or assumed.
  *
- * These are exactly `ALLOWED_CONSTRAINT_KEYS` in `prompt_sanitizer.py`, which is the server's
- * contract for what a client may assert about a design — anything outside it is dropped there
+ * Every key here is in `ALLOWED_CONSTRAINT_KEYS` in `prompt_sanitizer.py` (a subset of it: a few
+ * server keys are not offered to agents), which is the server's contract for what a client may
+ * assert about a design — anything outside it is dropped there
  * with a log line and no error, so an agent that invented a key would never learn it was
  * ignored. Strict here on purpose: a misspelled key is a validation error the agent can read
  * and fix, which is the opposite of that silence. The enum members mirror `UserConstraints`.
@@ -157,6 +160,23 @@ const constraintsInput = z.strictObject({
     data_retention: z.enum(['days', 'months', 'years', 'indefinite']).optional(),
     consistency: z.enum(['strict', 'eventual', 'mixed']).optional(),
     data_residency: z.enum(['any', 'us', 'eu']).optional(),
+    transfer_band: z
+        .enum(['light', 'moderate', 'heavy', 'very_heavy', 'massive'])
+        .optional()
+        .describe(
+            'How much data the system sends out to its users a month: light ~100 GB, moderate ~1 TB, ' +
+                'heavy ~10 TB, very_heavy ~100 TB, massive ~1 PB. Priced at the cloud\'s published ' +
+                'per-GB rates. Unset, data transfer is left out of the price and the estimate says so. ' +
+                'Set this or monthly_transfer_gb, not both.',
+        ),
+    monthly_transfer_gb: z
+        .number()
+        .min(0)
+        .max(1e8)
+        .optional()
+        .describe(
+            'The same thing as a figure: GB a month sent out to users. Set this or transfer_band, not both.',
+        ),
 })
 
 const generateInput = z.object({
@@ -183,7 +203,7 @@ const generateInput = z.object({
             'Answers to the questions a previous call returned with status "clarification_required", ' +
                 'keyed by their ids. Treated as authoritative requirements, so send what the user told ' +
                 'you — ask them rather than guessing. "Not sure yet" is a real answer to the load ' +
-                'question when they do not know the load.',
+                'question and to the data-sent-out question when they do not know the figure.',
         ),
     constraints: constraintsInput
         .optional()
@@ -494,7 +514,7 @@ function clarificationResult(questions: ClarifyingQuestion[]) {
             'user rather than inventing them — and put anything you already know into constraints ' +
             'instead, where it is used as a fact rather than as prose to interpret.' +
             (offered.some((question) => question.options.includes(LOAD_NOT_SURE))
-                ? ` If they do not know the load, answer "${LOAD_NOT_SURE}" rather than picking one.`
+                ? ` If they do not know a figure asked for, answer "${LOAD_NOT_SURE}" rather than picking one.`
                 : ''),
     ]
 
