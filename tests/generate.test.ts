@@ -711,7 +711,24 @@ describe('progress', () => {
 
         const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
 
-        expect(progress[0]?.message).toBe('Analysing requirements — 1M users (read from your prompt)')
+        // The server's source describes the zero rate, not the count, so the count is unlabelled.
+        expect(progress[0]?.message).toBe('Analysing requirements — 1M users')
+    })
+
+    it('reads a zero rate sent as text the same way', async () => {
+        const frames = [
+            JSON.stringify({
+                type: 'analysis',
+                pipeline_step: { requests_per_second: '0', scale: '1M users', scale_source: 'user_supplied' },
+            }),
+            DONE,
+        ]
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: frames }]))
+        harness = await startHarness(api.fetch)
+
+        const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
+
+        expect(progress[0]?.message).toBe('Analysing requirements — 1M users')
     })
 
     it('prints a provenance value it does not recognise rather than dropping it', async () => {

@@ -102,12 +102,15 @@ function frameDetail(frame: SseFrame): string | undefined {
     if (domain) parts.push(domain)
 
     const rawRps = asText(data.requests_per_second)
-    const rps = rawRps && Number(rawRps.replace(/[~,]/g, '')) === 0 ? undefined : rawRps
+    const zeroRate = rawRps !== undefined && Number(rawRps.replace(/[~,]/g, '')) === 0
+    const rps = zeroRate ? undefined : rawRps
     // "/s" — the vocabulary's dense-header unit; never "RPS" or "rps". Only a bare number takes
     // it: a figure that already carries words ("~500 at peak") would read "~500 at peak/s".
     const figure = rps ? (BARE_FIGURE.test(rps) ? `${rps}/s` : rps) : asText(data.scale)
     if (figure) {
-        const source = asText(data.scale_source)
+        // Beside a zero rate the server's `scale_source` still describes that rate, not the user
+        // count printed in its place, so the count goes unlabelled rather than mislabelled.
+        const source = zeroRate ? undefined : asText(data.scale_source)
         const label = source ? (PROVENANCE_LABELS[source] ?? source) : undefined
         parts.push(label ? `${figure} (${label})` : figure)
     }
