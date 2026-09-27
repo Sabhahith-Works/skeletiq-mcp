@@ -82,16 +82,17 @@ function asText(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim() && value !== 'unknown' ? value.trim() : undefined
 }
 
-/**
- * What the pipeline says it understood, appended to the stage label.
- *
- * The figure is read the way the server's own caption reads it — the RPS when there is one and
- * the user count otherwise — because `scale_source` describes *that* figure and no other.
- * Labelling the wrong one would be worse than labelling neither.
- */
 /** A number and nothing else, as the server formats one: "2,222", "1.5", "~500". */
 const BARE_FIGURE = /^~?\d[\d,]*(\.\d+)?$/
 
+/**
+ * What the pipeline says it understood, appended to the stage label.
+ *
+ * The figure is read the way the server's own caption reads it — the request rate when there is
+ * one and the user count otherwise — because `scale_source` describes *that* figure and no other.
+ * Labelling the wrong one would be worse than labelling neither. A rate of 0 is the server saying
+ * it has none yet, so it falls through to the user count rather than printing "0/s".
+ */
 function frameDetail(frame: SseFrame): string | undefined {
     const data = asRecord(frame.pipeline_step)
     if (!data) return undefined
@@ -100,7 +101,8 @@ function frameDetail(frame: SseFrame): string | undefined {
     const domain = asText(data.domain)
     if (domain) parts.push(domain)
 
-    const rps = asText(data.requests_per_second)
+    const rawRps = asText(data.requests_per_second)
+    const rps = rawRps && Number(rawRps.replace(/[~,]/g, '')) === 0 ? undefined : rawRps
     // "/s" — the vocabulary's dense-header unit; never "RPS" or "rps". Only a bare number takes
     // it: a figure that already carries words ("~500 at peak") would read "~500 at peak/s".
     const figure = rps ? (BARE_FIGURE.test(rps) ? `${rps}/s` : rps) : asText(data.scale)
@@ -227,6 +229,12 @@ const generateOutput = z.object({
     component_count: z.number().nullable(),
     assistant_message: z.string().nullable(),
     degradations: z.array(z.string()),
+    /**
+     * The server's sentence when part of what the model was given had to be cut to fit its input
+     * window — a source left out, or the current design summarised — and null otherwise. The design
+     * is still complete; this says what it was written without.
+     */
+    prompt_trim_note: z.string().nullable(),
     /**
      * Present, and non-empty, only on `status: "clarification_required"`. A refusal is a
      * *result* here rather than an error: an error result may carry no `structuredContent` at
@@ -533,6 +541,7 @@ function clarificationResult(questions: ClarifyingQuestion[]) {
             component_count: null,
             assistant_message: null,
             degradations: [],
+            prompt_trim_note: null,
             clarifying_questions: structured,
         },
         lines.join('\n'),
@@ -555,6 +564,7 @@ async function queueGeneration(client: SkeletiqClient, body: Record<string, unkn
             component_count: null,
             assistant_message: null,
             degradations: [],
+            prompt_trim_note: null,
             clarifying_questions: [],
         },
         `Queued as job ${queued.job_id}. Poll it with get_generation_status.`,
@@ -619,6 +629,7 @@ async function streamGeneration(
     const degradations = Array.isArray(finished.degradations)
         ? finished.degradations.filter((d): d is string => typeof d === 'string')
         : []
+    const trimNote = asText(asRecord(finished.run_summary)?.prompt_trim_note) ?? null
     const created = architectureId ? await describeCreated(resolver, architectureId) : undefined
 
     return ok(
@@ -632,6 +643,7 @@ async function streamGeneration(
             component_count: created?.componentCount ?? null,
             assistant_message: null,
             degradations,
+            prompt_trim_note: trimNote,
             clarifying_questions: [],
         },
         [
@@ -647,6 +659,7 @@ async function streamGeneration(
                   ]
                 : ['SkeletIQ answered in prose rather than producing a design.']),
             ...degradations.map((d) => `Degraded: ${d}`),
+            ...(trimNote ? [`Input trimmed: ${trimNote}`] : []),
         ].join('\n'),
     )
 }

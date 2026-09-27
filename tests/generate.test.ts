@@ -48,6 +48,28 @@ describe('the inline path', () => {
         expect(result.structuredContent?.version).toBe(1)
     })
 
+    it('says when the model was given less than the whole input', async () => {
+        const note = 'Some of the sources found for this design were left out to fit the model\'s input.'
+        const done = JSON.stringify({ ...JSON.parse(DONE), run_summary: { prompt_trim_note: note } })
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [done] }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A link shortener' })
+
+        expect(result.structuredContent?.prompt_trim_note).toBe(note)
+        expect(joined(result)).toContain(`Input trimmed: ${note}`)
+    })
+
+    it('reports no trim when the run summary has none', async () => {
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [DONE] }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A link shortener' })
+
+        expect(result.structuredContent?.prompt_trim_note).toBeNull()
+        expect(joined(result)).not.toContain('Input trimmed')
+    })
+
     it('sends an Idempotency-Key and never a runtime_profile', async () => {
         const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: [DONE] }]))
         harness = await startHarness(api.fetch)
@@ -673,6 +695,23 @@ describe('progress', () => {
             'Analysing requirements — ~500 at peak (read from your prompt)',
             'Generating the design — 2,222/s (you set this)',
         ])
+    })
+
+    it('reads a zero rate as none and falls back to the user count', async () => {
+        // 0 is the server saying it has no rate yet; "0/s" would read as a design sized for nothing.
+        const frames = [
+            JSON.stringify({
+                type: 'analysis',
+                pipeline_step: { requests_per_second: 0, scale: '1M users', scale_source: 'llm_inferred' },
+            }),
+            DONE,
+        ]
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', sse: frames }]))
+        harness = await startHarness(api.fetch)
+
+        const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
+
+        expect(progress[0]?.message).toBe('Analysing requirements — 1M users (read from your prompt)')
     })
 
     it('prints a provenance value it does not recognise rather than dropping it', async () => {

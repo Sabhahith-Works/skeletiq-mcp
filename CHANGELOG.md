@@ -20,6 +20,12 @@ new version.
 
 ### Changed
 
+- **A design written from a trimmed input says so.** When part of what the model was given had to
+  be cut to fit its input window (a source left out, or the current design summarised),
+  `generate_architecture` returns the server's sentence as `prompt_trim_note` and prints it as an
+  "Input trimmed:" line. It is null when nothing was cut.
+- **A request rate of 0 in a progress line reads as no rate yet.** The line falls back to the user
+  count instead of printing "0/s".
 - **A figure the user gave reads "(you set this)" in progress lines**, the words the app uses, where
   it read "(stated)".
 - **How much data a design sends out can be stated, and "Not sure yet" answers that question
