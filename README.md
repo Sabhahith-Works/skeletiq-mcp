@@ -86,7 +86,7 @@ change your provider keys, see billing, or delete your account, whatever scopes 
 |---|---|
 | `list_projects` | Find a project by name. Returns the candidates rather than guessing between them. |
 | `get_design` | Read a design, in one of six modes: `overview`, `component`, `brief`, `readiness`, `build_order`, `gaps`. Where a version records its requirements, `overview` and `component` resolve the design's `R`-ids to the requirements they name, and say what became of each. |
-| `generate_architecture` | Design a system from a prompt. Spends credits and takes minutes. |
+| `generate_architecture` | Design a system from a prompt. Spends credits and takes minutes. A prompt that states no load comes back with a question instead, and nothing is charged: ask your human, and answer "Not sure yet" when they do not know rather than guessing. |
 | `get_generation_status` | Poll a generation started with `wait: false`. |
 | `critique_architecture` | Check a design against SkeletIQ's rules. Deterministic, free, stores nothing. Tell it the `domain` and the `exposure`. |
 | `check_drift` | Report what you built; hear what is missing, half done, or not in the design. |
@@ -114,8 +114,9 @@ unknown ids with suggestions, they are suggestions — put them to a person rath
 mapping.
 
 **`critique_architecture`'s optional inputs are not neutral.** Omitting one does not skip a
-question; it answers it. With no `domain` and `secondary_domains`, no compliance framework applies,
-so no compliance finding is possible and the score comes back higher than the SkeletIQ app shows
+question; it answers it. With no `domain`, no compliance framework applies (`secondary_domains`
+select none — they add that domain's design checks as advice — so name a framework when it must
+apply), so no compliance finding is possible and the score comes back higher than the SkeletIQ app shows
 for the same design — by up to 15 points. With no `exposure`, the design is assessed as
 internet-facing, which is how an air-gapped system gets told to add a CDN and a WAF. The response
 says what was actually used — `frameworks_checked` and `exposure_assessed` — and the text output
