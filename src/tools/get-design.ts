@@ -514,6 +514,11 @@ function unconfirmedLegend(rows: RequirementLedgerRow[]): string[] {
                'names the split the design would need — judge whether that is realistic. It does not block',
                'handoff: ask how the traffic divides.']
             : []),
+        ...(reasons.has('advisory_finding')
+            ? ['`unconfirmed (review advice)` — only advice from the design review fails it: the findings it',
+               'rests on are reported, not scored, so it does not block handoff. Read the advice and decide',
+               'whether the design should take it.']
+            : []),
         ...(words.has('unconfirmed (assumed load)')
             ? ['`unconfirmed (assumed load)` — the verdict rests on the load, which was assumed: nobody said how',
                'much traffic to expect, so the design was sized and priced on the typical load for this kind of',

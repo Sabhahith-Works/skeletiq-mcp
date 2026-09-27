@@ -1575,6 +1575,12 @@
           "nullable": true,
           "item": null
         },
+        "advisory_only": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "blocks_handoff": {
           "required": true,
           "kind": "scalar",

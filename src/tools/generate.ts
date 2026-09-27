@@ -64,7 +64,7 @@ const LOAD_NOT_SURE = 'Not sure yet'
  */
 const PROVENANCE_LABELS: Record<string, string> = {
     user_supplied: 'stated',
-    llm_inferred: 'inferred',
+    llm_inferred: 'read from your prompt',
     tier_default: 'assumed',
     guardrail_clamped: 'adjusted',
 }
@@ -96,7 +96,8 @@ function frameDetail(frame: SseFrame): string | undefined {
     if (domain) parts.push(domain)
 
     const rps = asText(data.requests_per_second)
-    const figure = rps ? `${rps} rps` : asText(data.scale)
+    // "/s" — the vocabulary's dense-header unit; never "RPS" or "rps".
+    const figure = rps ? `${rps}/s` : asText(data.scale)
     if (figure) {
         const source = asText(data.scale_source)
         const label = source ? (PROVENANCE_LABELS[source] ?? source) : undefined
@@ -151,7 +152,7 @@ const constraintsInput = z.strictObject({
         .optional()
         .describe(
             'Wins over a peak the prompt states ("peaking at 2,000 per second"), which the server ' +
-                'also reads. Unset and unstated, the design assumes the tier default peak.',
+                'also reads. Unset and unstated, the design assumes a typical peak for its scale.',
         ),
     data_retention: z.enum(['days', 'months', 'years', 'indefinite']).optional(),
     consistency: z.enum(['strict', 'eventual', 'mixed']).optional(),

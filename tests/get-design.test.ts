@@ -544,6 +544,30 @@ describe('the requirements a design was built from', () => {
         expect(body).not.toMatch(/`unconfirmed \(model check\)`/)
     })
 
+    it('reads a line only review advice fails as unconfirmed, and says why', async () => {
+        await withLedger({
+            rows: [
+                {
+                    id: 'R11',
+                    text: 'Compliance with PCI DSS standards.',
+                    verdict: 'fails',
+                    check_method: 'rules',
+                    verdict_reason: 'The review advises log monitoring for the cardholder data flow.',
+                    blocks_handoff: false,
+                    unconfirmed_reason: 'advisory_finding',
+                    advisory_only: true,
+                    cited_by_components: ['api'],
+                },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('- R11 [unconfirmed (review advice) — verify before building for it] Compliance with PCI DSS standards.')
+        expect(body).toMatch(/`unconfirmed \(review advice\)` — only advice from the design review fails it/)
+        expect(body).not.toMatch(/`unconfirmed \(unstated split\)`/)
+    })
+
     it('reads a budget line that rests on an assumed load as its own kind of unconfirmed', async () => {
         await withLedger({
             rows: [

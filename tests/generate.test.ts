@@ -583,7 +583,7 @@ describe('progress', () => {
 
         expect(result.isError).toBeFalsy()
         expect(progress.map((event) => event.message)).toEqual([
-            'Analysing requirements — web, 4000 rps (inferred)',
+            'Analysing requirements — web, 4000/s (read from your prompt)',
             'Selecting architecture patterns',
             'Generating the design',
         ])
@@ -592,7 +592,7 @@ describe('progress', () => {
 
     it('says which figures the run was given and which it made up', async () => {
         // The agent reads these lines and nothing else while the run is going. An unlabelled
-        // "4000 rps" is indistinguishable from one the user asked for, and an agent that builds
+        // "4000/s" is indistinguishable from one the user asked for, and an agent that builds
         // against an invented figure has no way to discover it was invented.
         const frames = [
             JSON.stringify({
@@ -611,11 +611,11 @@ describe('progress', () => {
         const { progress } = await harness.callWithProgress('generate_architecture', { prompt: 'x' })
 
         expect(progress.map((event) => event.message)).toEqual([
-            'Analysing requirements — fintech, 5000 rps (stated)',
+            'Analysing requirements — fintech, 5000/s (stated)',
             // Repeated on the generation frame on purpose: that is the frame live for the whole
             // long stretch of the run, and a label that appears once early is a label the agent
             // has to remember rather than read.
-            'Generating the design — fintech, 5000 rps (stated)',
+            'Generating the design — fintech, 5000/s (stated)',
         ])
     })
 

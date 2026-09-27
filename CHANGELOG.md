@@ -20,6 +20,16 @@ new version.
 
 ### Changed
 
+- **A requirement only review advice fails says so.** A line the review's rules fail through
+  advice alone no longer blocks handoff; `get_design` prints it as `unconfirmed (review advice)` and
+  explains it once under the list, and the ledger row's new `advisory_only` field is accepted.
+- **Progress-line copy follows the product's one vocabulary for where a figure came from.**
+  `generate_architecture`'s progress notifications used to label an LLM-read figure "inferred"
+  (`"4000 rps (inferred)"`); it now says `"read from your prompt"`, matching the wording the app
+  uses beside the same numbers. The request-rate figure itself now reads `"4000/s"` rather than
+  `"4000 rps"` — "RPS" is never printed, in a progress line or anywhere else. The
+  `generate_architecture` schema's `burstiness` description no longer says "the tier default peak";
+  it says "a typical peak for its scale".
 - **A requirement that rests on an assumed load says so.** When nobody said how much traffic to
   expect, SkeletIQ sizes and prices a design on the typical load for its kind of system, and a budget
   or capacity line that fails on that load no longer blocks handoff. `get_design` prints such a line

@@ -172,6 +172,7 @@ const MEASURED_METHODS = ['simulation', 'cost', 'rules']
 const UNCONFIRMED_WORDS: Record<string, string> = {
     model_check: 'unconfirmed (model check)',
     unstated_input: 'unconfirmed (unstated split)',
+    advisory_finding: 'unconfirmed (review advice)',
 }
 
 /**
