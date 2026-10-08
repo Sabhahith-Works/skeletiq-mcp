@@ -413,6 +413,12 @@
         "nested in the 409 intent-decision body"
       ],
       "fields": {
+        "asked_if": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "ClarifyingCondition"
+        },
         "decline_options": {
           "required": false,
           "kind": "list",
@@ -422,6 +428,12 @@
         "dismiss_options": {
           "required": false,
           "kind": "list",
+          "nullable": true,
+          "item": null
+        },
+        "fork": {
+          "required": false,
+          "kind": "scalar",
           "nullable": true,
           "item": null
         },
@@ -1639,6 +1651,12 @@
           "required": true,
           "kind": "scalar",
           "nullable": false,
+          "item": null
+        },
+        "origin": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
           "item": null
         },
         "source": {

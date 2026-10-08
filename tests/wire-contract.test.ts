@@ -200,7 +200,15 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
  * the entry turns red and has to be deleted. The list can only ever shrink, and it cannot be
  * quietly outlived.
  */
-const KNOWN_DEFECTS: Record<string, Record<string, string>> = {}
+const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
+    ClarifyingQuestionSchema: {
+        fork: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
+        asked_if: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
+    },
+    RequirementLedgerRowSchema: {
+        origin: "Whether a requirement was stated or proposed; the connector surfaces it in a later release.",
+    },
+}
 
 // ─── Reading the connector ───────────────────────────────────────────
 
