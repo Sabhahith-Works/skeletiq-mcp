@@ -539,11 +539,35 @@
           "nullable": false,
           "item": null
         },
+        "layer": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "name": {
           "required": true,
           "kind": "scalar",
           "nullable": false,
           "item": null
+        },
+        "platform_origin": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "platform_role": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "policies": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "ComponentPolicies"
         },
         "properties": {
           "required": false,
@@ -560,6 +584,12 @@
         "role": {
           "required": false,
           "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "satisfies": {
+          "required": false,
+          "kind": "list",
           "nullable": true,
           "item": null
         },
@@ -607,6 +637,12 @@
           "kind": "scalar",
           "nullable": true,
           "item": null
+        },
+        "policies": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "EdgePolicies"
         },
         "protocol": {
           "required": false,

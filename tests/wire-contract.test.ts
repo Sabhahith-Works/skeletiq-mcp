@@ -208,6 +208,16 @@ const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
     RequirementLedgerRowSchema: {
         origin: "Whether a requirement was stated or proposed; the connector surfaces it in a later release.",
     },
+    ComponentSchema: {
+        layer: 'Platform layer metadata; the connector surfaces it in a later release.',
+        platform_role: 'Platform layer metadata; the connector surfaces it in a later release.',
+        platform_origin: 'Platform layer metadata; the connector surfaces it in a later release.',
+        satisfies: 'Platform layer metadata; the connector surfaces it in a later release.',
+        policies: 'Platform layer metadata; the connector surfaces it in a later release.',
+    },
+    ConnectionSchema: {
+        policies: 'Platform layer metadata; the connector surfaces it in a later release.',
+    },
 }
 
 // ─── Reading the connector ───────────────────────────────────────────
