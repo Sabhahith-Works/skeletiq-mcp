@@ -217,6 +217,11 @@ const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
     },
     ConnectionSchema: {
         policies: 'Platform layer metadata; the connector surfaces it in a later release.',
+        platform_origin: 'Platform layer metadata; the connector surfaces it in a later release.',
+    },
+    ArchitectureJsonSchema: {
+        bypassed_connections: 'Platform layer metadata; the connector surfaces it in a later release.',
+        platform_decisions: 'Platform layer metadata; the connector surfaces it in a later release.',
     },
 }
 

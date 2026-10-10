@@ -16,6 +16,12 @@
           "nullable": true,
           "item": null
         },
+        "bypassed_connections": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": "ArchitectureConnection"
+        },
         "components": {
           "required": true,
           "kind": "list",
@@ -59,6 +65,12 @@
           "item": "GroundingSummary"
         },
         "open_questions": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": null
+        },
+        "platform_decisions": {
           "required": false,
           "kind": "list",
           "nullable": true,
@@ -633,6 +645,12 @@
           "item": null
         },
         "label": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "platform_origin": {
           "required": false,
           "kind": "scalar",
           "nullable": true,
