@@ -216,10 +216,6 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
  * quietly outlived.
  */
 const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
-    ClarifyingQuestionSchema: {
-        fork: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
-        asked_if: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
-    },
 }
 
 // ─── Reading the connector ───────────────────────────────────────────

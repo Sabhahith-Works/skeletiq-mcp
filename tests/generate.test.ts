@@ -389,6 +389,52 @@ describe('a prompt too vague to design from', () => {
         expect(questions[0]?.options).toEqual(['Any part may change'])
     })
 
+    it('shows the field a question resolves and lists a dependent question after its parent', async () => {
+        const body = {
+            error: {
+                ...CLARIFY_409.error,
+                detail: {
+                    ...CLARIFY_409.error.detail,
+                    clarifying_questions: [
+                        {
+                            id: 'phi_storage',
+                            question: 'Where is the health data kept?',
+                            options: ['In the cloud', 'On site'],
+                            asked_if: { question_id: 'handles_phi', values: ['Yes', 'Maybe'] },
+                        },
+                        { id: 'plain', question: 'Who uses it?', options: ['Staff'] },
+                        {
+                            id: 'handles_phi',
+                            question: 'Does it hold patient data?',
+                            options: ['Yes', 'Maybe', 'No'],
+                            fork: 'regimes.hipaa',
+                        },
+                        {
+                            id: 'orphan',
+                            question: 'Which region?',
+                            options: ['EU'],
+                            asked_if: { question_id: 'missing', values: ['x'] },
+                        },
+                    ],
+                },
+            },
+        }
+        const api = fakeApi(baseRoutes([{ match: 'POST /api/v1/chat/generate/stream', status: 409, body }]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('generate_architecture', { prompt: 'A clinic app' })
+
+        const ids = (result.structuredContent?.clarifying_questions as { id: string }[]).map((q) => q.id)
+        expect(ids).toEqual(['plain', 'handles_phi', 'phi_storage', 'orphan'])
+        const text = joined(result)
+        expect(text).toMatch(/Resolves: regimes\.hipaa/)
+        expect(text).toMatch(/Ask only if handles_phi is answered Yes or Maybe/)
+        expect(text).toMatch(/Ask only if missing is answered x/)
+        // A question with neither field prints neither line.
+        const plain = text.slice(text.indexOf('plain:'), text.indexOf('handles_phi:'))
+        expect(plain).not.toMatch(/Resolves:|Ask only if/)
+    })
+
     it('refuses the queued path the same way it refuses the inline one', async () => {
         // The two endpoints take the same request and refuse it the same way. A recovery path
         // present on one and missing on the other is how a background run comes to lose what the

@@ -386,7 +386,7 @@ function decisionRefusal(progress: unknown): DecisionRefusal | undefined {
 }
 
 function refusalQuestions(refusal: DecisionRefusal | undefined) {
-    return (refusal?.clarifying_questions ?? []).map(offeredQuestion)
+    return orderQuestions(refusal?.clarifying_questions ?? []).map(offeredQuestion)
 }
 
 /**
@@ -409,7 +409,36 @@ function offeredQuestion(question: ClarifyingQuestion) {
             return [detail.detail ? `${said}: ${detail.detail}` : said]
         }),
         skipEffect: question.skip_effect ?? '',
+        fork: question.fork ?? '',
+        askedIf: question.asked_if ?? undefined,
     }
+}
+
+/**
+ * Each dependent question directly after the question it depends on. A question whose parent is
+ * not in the list goes last, in its original order.
+ */
+function orderQuestions(questions: ClarifyingQuestion[]): ClarifyingQuestion[] {
+    const ids = new Set(questions.map((question) => question.id))
+    const placed = new Set<ClarifyingQuestion>()
+    const ordered: ClarifyingQuestion[] = []
+    const place = (question: ClarifyingQuestion) => {
+        if (placed.has(question)) return
+        placed.add(question)
+        ordered.push(question)
+        for (const child of questions) {
+            if (child.asked_if?.question_id === question.id) place(child)
+        }
+    }
+    for (const question of questions) {
+        if (!question.asked_if) place(question)
+    }
+    for (const question of questions) {
+        if (question.asked_if && !ids.has(question.asked_if.question_id)) place(question)
+    }
+    // Anything left sits in a dependency cycle.
+    for (const question of questions) place(question)
+    return ordered
 }
 
 type OfferedQuestion = ReturnType<typeof offeredQuestion>
@@ -429,6 +458,10 @@ function questionLines(questions: OfferedQuestion[]): string[] {
               ? [`  For example: ${question.options.join(' · ')}`]
               : []),
         ...(question.skipEffect ? [`  If it is left unanswered: ${question.skipEffect}`] : []),
+        ...(question.fork ? [`  Resolves: ${question.fork}`] : []),
+        ...(question.askedIf
+            ? [`  Ask only if ${question.askedIf.question_id} is answered ${question.askedIf.values.join(' or ')}`]
+            : []),
     ])
 }
 
@@ -514,7 +547,7 @@ function clarifyingQuestions(error: unknown): ClarifyingQuestion[] | undefined {
  * the questions in the one half of a tool result that cannot carry structure.
  */
 function clarificationResult(questions: ClarifyingQuestion[]) {
-    const offered = questions.map(offeredQuestion)
+    const offered = orderQuestions(questions).map(offeredQuestion)
     const structured = offered.map(structuredQuestion)
 
     const lines = [

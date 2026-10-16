@@ -662,6 +662,10 @@ export const ClarifyingQuestionSchema = z.looseObject({
     multiple: z.boolean().optional(),
     /** What leaving the question unanswered does, in the product's words. */
     skip_effect: z.string().nullable().optional(),
+    /** The contract field this question resolves, e.g. `regimes.hipaa`; absent when it is not a fork. */
+    fork: z.string().nullish(),
+    /** Ask only when `question_id` was answered with one of `values`. */
+    asked_if: z.object({ question_id: z.string(), values: z.array(z.string()) }).nullish(),
 })
 export type ClarifyingQuestion = z.infer<typeof ClarifyingQuestionSchema>
 
