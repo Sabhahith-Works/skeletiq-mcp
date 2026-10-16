@@ -60,6 +60,16 @@ export const ComponentSchema = z.looseObject({
     requirement_ids: z.array(z.string()).nullable().optional(),
     /** Ids of the decision records this component realizes, e.g. `database.primary`. */
     decision_ids: z.array(z.string()).nullable().optional(),
+    /** `domain` | `platform`. Left as a string: a value this package has not seen is still shown. */
+    layer: z.string().nullish(),
+    /** What a platform part is (`waf`, `api_gateway`, …). Left as a string for the same reason. */
+    platform_role: z.string().nullish(),
+    /** `realized` (the platform added it) | `adopted` (the design drew it and the platform kept it). */
+    platform_origin: z.string().nullish(),
+    /** Ids of the platform obligations this part meets. */
+    satisfies: z.array(z.string()).nullish(),
+    /** Cross-cutting settings realized on the component (encryption, backup, rate limit, …). */
+    policies: z.record(z.string(), z.unknown()).nullish(),
 })
 export type Component = z.infer<typeof ComponentSchema>
 
@@ -70,6 +80,10 @@ export const ConnectionSchema = z.looseObject({
     label: z.string().nullable().optional(),
     protocol: z.string().nullable().optional(),
     is_async: z.boolean().optional(),
+    /** TLS, timeout and breaker settings on the edge. */
+    policies: z.record(z.string(), z.unknown()).nullish(),
+    /** `realized` on an edge the platform added. */
+    platform_origin: z.string().nullish(),
 })
 export type Connection = z.infer<typeof ConnectionSchema>
 
@@ -130,6 +144,10 @@ export const ArchitectureJsonSchema = z.looseObject({
     scalability_notes: z.string().nullable().optional(),
     assumptions: z.array(GapEntrySchema).nullable().optional(),
     open_questions: z.array(GapEntrySchema).nullable().optional(),
+    /** Drawn connections the platform layer replaced. */
+    bypassed_connections: z.array(ConnectionSchema).nullish(),
+    /** The `design_decisions` entries the platform layer appended. */
+    platform_decisions: z.array(z.string()).nullish(),
 })
 export type ArchitectureJson = z.infer<typeof ArchitectureJsonSchema>
 

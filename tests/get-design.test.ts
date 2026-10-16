@@ -1866,6 +1866,93 @@ function brief() {
     }
 }
 
+const PLATFORM_DESIGN = {
+    ...DESIGN,
+    components: [
+        ...DESIGN.components,
+        {
+            id: 'waf',
+            name: 'Edge WAF',
+            type: 'service',
+            layer: 'platform',
+            platform_role: 'waf',
+            platform_origin: 'realized',
+            satisfies: ['edge.filtering'],
+            policies: { rate_limit: true },
+        },
+    ],
+    design_decisions: [...DESIGN.design_decisions, 'A WAF fronts the public API.'],
+    platform_decisions: ['A WAF fronts the public API.'],
+    bypassed_connections: [{ source: 'api', target: 'cache', protocol: 'tcp' }],
+}
+
+describe('the platform layer', () => {
+    it('prints the platform part, the replaced connection and the platform decision', async () => {
+        await open(designRoutes(PLATFORM_DESIGN))
+
+        const overviewResult = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' })
+        const overviewText = text(overviewResult)
+        expect(overviewText).toMatch(/Connections the platform layer replaced:\n- api → cache/)
+        expect(overviewText).toMatch(/- A WAF fronts the public API\. \(platform\)/)
+        expect(overviewText).not.toMatch(/Postgres was chosen for the Links Database because the data is relational\. \(platform\)/)
+
+        const componentResult = await harness!.call('get_design', {
+            project_id: PROJECT_ID,
+            mode: 'component',
+            component_id: 'waf',
+        })
+        const componentText = text(componentResult)
+        expect(componentText).toMatch(/Platform part \(added for you\): waf; satisfies edge\.filtering/)
+        expect(componentText).toMatch(/Policies: rate_limit=true/)
+    })
+
+    it('shows an unknown role verbatim and caps the replaced list', async () => {
+        const many = Array.from({ length: 12 }, (_, i) => ({ source: `s${i}`, target: `t${i}` }))
+        await open(
+            designRoutes({
+                ...PLATFORM_DESIGN,
+                bypassed_connections: many,
+                components: [{ id: 'x', name: 'X', type: 'service', platform_role: 'quantum_gate' }],
+            }),
+        )
+
+        const overviewText = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+        expect(overviewText).toMatch(/- s9 → t9/)
+        expect(overviewText).not.toMatch(/s10 → t10/)
+        expect(overviewText).toMatch(/and 2 more/)
+
+        const componentText = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'x' }),
+        )
+        expect(componentText).toMatch(/Platform part: quantum_gate/)
+    })
+
+    it('spells out a nested policy value instead of [object Object]', async () => {
+        await open(
+            designRoutes({
+                ...PLATFORM_DESIGN,
+                components: [{ id: 'x', name: 'X', type: 'service', policies: { retention: { days: 30 } } }],
+            }),
+        )
+
+        const componentText = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'x' }),
+        )
+        expect(componentText).toMatch(/Policies: retention=\{"days":30\}/)
+    })
+
+    it('renders a design without platform fields as before', async () => {
+        await open(designRoutes(DESIGN))
+
+        const overviewText = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+        const componentText = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'api' }),
+        )
+        expect(overviewText).not.toMatch(/platform/i)
+        expect(componentText).not.toMatch(/platform|Policies:/i)
+    })
+})
+
 function text(result: { content: { text?: string }[] }): string {
     return result.content.map((block) => block.text ?? '').join('\n')
 }

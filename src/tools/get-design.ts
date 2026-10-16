@@ -22,6 +22,8 @@ import {
     isUnconfirmedRequirement,
     orderRequirementRows,
     overview,
+    platformPartLines,
+    platformReplacedLines,
     requirementVerdict,
     sliceComponent,
     UNCONFIRMED_ADVICE,
@@ -90,9 +92,13 @@ function decisionsHeading(assumed: string[], settled: string, withAssumptions: s
  * One bullet per decision, with ` (assumption)` on those the design could cite nothing for. Calling
  * every decision settled told an agent to build to a guess the design had already flagged.
  */
-function decisionLines(decisions: string[], assumed: string[]): string[] {
+function decisionLines(decisions: string[], assumed: string[], platform: string[] = []): string[] {
     const marked = new Set(assumed)
-    return decisions.map((decision) => `- ${decision}${marked.has(decision) ? ' (assumption)' : ''}`)
+    const added = new Set(platform.map((text) => text.trim()))
+    return decisions.map(
+        (decision) =>
+            `- ${decision}${marked.has(decision) ? ' (assumption)' : ''}${added.has(decision.trim()) ? ' (platform)' : ''}`,
+    )
 }
 
 export function registerGetDesign(server: McpServer, client: SkeletiqClient, resolver: DesignResolver): void {
@@ -134,6 +140,9 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             ...data.components.map(
                                 (c) => `- ${c.id} — ${c.name} (${c.type}${c.technology ? `, ${c.technology}` : ''})`,
                             ),
+                            ...(data.bypassed_connections.length
+                                ? ['', ...platformReplacedLines(data)]
+                                : []),
                             // Above the decisions because the two answer different questions, in
                             // this order: requirements are what was asked for, decisions are how
                             // the design answered.
@@ -147,7 +156,7 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                                 ? ['', decisionsHeading(data.assumed_decisions,
                                        'Decisions taken — these are settled, build to them:',
                                        'Decisions taken — build to them; confirm the ones marked (assumption) first, they rest on no cited source:'),
-                                   ...decisionLines(data.design_decisions, data.assumed_decisions)]
+                                   ...decisionLines(data.design_decisions, data.assumed_decisions, data.platform_decisions)]
                                 : []),
                             ...(data.trade_offs.length
                                 ? ['', 'Trade-offs the design accepts:',
@@ -177,6 +186,7 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                             `## ${component.name} (${component.id})`,
                             `Type: ${component.type}${component.technology ? ` · ${component.technology}` : ''}`,
                             component.description ?? '',
+                            ...platformPartLines(component),
                             '',
                             outgoing.length
                                 ? `Calls: ${outgoing.map((c) => `${c.target}${c.protocol ? ` (${c.protocol})` : ''}`).join(', ')}`

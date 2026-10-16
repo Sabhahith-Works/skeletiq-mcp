@@ -341,6 +341,8 @@ export function overview(
     design_decisions: string[]
     assumed_decisions: string[]
     trade_offs: string[]
+    bypassed_connections: Connection[]
+    platform_decisions: string[]
     requirement_ledger?: RequirementLedger
 } {
     const decisions = decisionTexts(design)
@@ -355,12 +357,62 @@ export function overview(
         // strings every existing caller reads.
         assumed_decisions: assumedAmong(design, decisions),
         trade_offs: design.trade_offs ?? [],
+        bypassed_connections: design.bypassed_connections ?? [],
+        platform_decisions: design.platform_decisions ?? [],
         // Carried verbatim, rows in the server's order, and only when the version has one. This is
         // a rebuild from named keys, so anything not named here is dropped without a trace — which
         // is how `grounded_decisions` went missing for two releases. Re-sorting the rows on the way
         // past would make "verbatim" untrue; the grouping belongs to the text that prints them.
         ...(ledger ? { requirement_ledger: ledger } : {}),
     }
+}
+
+/** Connections shown by name before the rest are summarised as a count. */
+const MAX_REPLACED_SHOWN = 10
+
+/** `key=value` for each policy the component states, in the order the design gives them. */
+function policySummary(policies: Record<string, unknown>): string {
+    return Object.entries(policies)
+        .filter(([, value]) => value !== null && value !== undefined)
+        .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
+        .join(', ')
+}
+
+/**
+ * The text lines for a platform part: what it is, who added it, what it satisfies, and its policies.
+ * Empty when the component carries no platform fields.
+ */
+export function platformPartLines(component: Component): string[] {
+    const lines: string[] = []
+    const role = component.platform_role
+    const satisfies = component.satisfies ?? []
+    if (role || component.platform_origin || component.layer === 'platform' || satisfies.length > 0) {
+        const origin =
+            component.platform_origin === 'realized'
+                ? 'added for you'
+                : component.platform_origin === 'adopted'
+                  ? 'adopted'
+                  : component.platform_origin
+        const label = origin ? ` (${origin})` : ''
+        const satisfied = satisfies.length > 0 ? `; satisfies ${satisfies.join(', ')}` : ''
+        lines.push(`Platform part${label}: ${role ?? 'unspecified'}${satisfied}`)
+    }
+    const summary = component.policies ? policySummary(component.policies) : ''
+    if (summary) lines.push(`Policies: ${summary}`)
+    return lines
+}
+
+/** "Connections the platform layer replaced: A → B" lines, at most ten, then a count. Empty when none. */
+export function platformReplacedLines(design: { bypassed_connections?: Connection[] | null }): string[] {
+    const bypassed = design.bypassed_connections ?? []
+    if (bypassed.length === 0) return []
+    const shown = bypassed.slice(0, MAX_REPLACED_SHOWN).map((c) => `- ${c.source} → ${c.target}`)
+    const more = bypassed.length - MAX_REPLACED_SHOWN
+    return [
+        'Connections the platform layer replaced:',
+        ...shown,
+        ...(more > 0 ? [`and ${more} more`] : []),
+    ]
 }
 
 function normalize(value: string): string {

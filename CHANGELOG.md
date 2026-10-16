@@ -7,6 +7,15 @@ Notable changes to `@skeletiq/mcp`. The format follows
 npm releases are immutable, so nothing published is ever edited in place — a correction is always a
 new version.
 
+## [Unreleased]
+
+### Added
+
+- **A design's platform layer is shown.** `get_design` marks the parts the platform added or
+  adopted, with the obligations each satisfies and their policies, lists the drawn connections the
+  platform replaced, and marks the platform's decisions "(platform)". Designs without platform
+  fields read as before.
+
 ## [0.4.0] — 2026-09-28
 
 ### Added
