@@ -350,7 +350,7 @@ describe('a prompt too vague to design from', () => {
         // not know the load, and the design is then sized on a typical one and marked assumed.
         const questions = result.structuredContent?.clarifying_questions as { options: string[] }[]
         expect(questions[0]?.options).toEqual(options)
-        expect(Object.keys(questions[0] ?? {}).sort()).toEqual(['id', 'options', 'question', 'why'])
+        expect(Object.keys(questions[0] ?? {}).sort()).toEqual(['asked_if', 'fork', 'id', 'options', 'question', 'why'])
         const text = joined(result)
         expect(text).toMatch(/About 500 requests a second, sustained \(Popular app · about 500 requests a second\): Around 43 million/)
         expect(text).toMatch(/If it is left unanswered: I'll use a typical load/)
@@ -426,6 +426,18 @@ describe('a prompt too vague to design from', () => {
 
         const ids = (result.structuredContent?.clarifying_questions as { id: string }[]).map((q) => q.id)
         expect(ids).toEqual(['plain', 'handles_phi', 'phi_storage', 'orphan'])
+        // The structured half carries the same dependency, so an agent reading only it asks in order too.
+        const structured = result.structuredContent?.clarifying_questions as {
+            id: string
+            fork: string | null
+            asked_if: { question_id: string; values: string[] } | null
+        }[]
+        expect(structured.find((q) => q.id === 'handles_phi')?.fork).toBe('regimes.hipaa')
+        expect(structured.find((q) => q.id === 'phi_storage')?.asked_if).toEqual({
+            question_id: 'handles_phi',
+            values: ['Yes', 'Maybe'],
+        })
+        expect(structured.find((q) => q.id === 'plain')).toMatchObject({ fork: null, asked_if: null })
         const text = joined(result)
         expect(text).toMatch(/Resolves: regimes\.hipaa/)
         expect(text).toMatch(/Ask only if handles_phi is answered Yes or Maybe/)
@@ -627,7 +639,14 @@ describe('a job that was declined rather than broken', () => {
 
         expect(result.structuredContent?.refusal_code).toBe('CLARIFICATION_REQUIRED')
         expect(result.structuredContent?.clarifying_questions).toEqual([
-            { id: 'q1', question: 'Roughly how many users?', why: 'It sets the scale.', options: ['~1k', '~1M'] },
+            {
+                id: 'q1',
+                question: 'Roughly how many users?',
+                why: 'It sets the scale.',
+                options: ['~1k', '~1M'],
+                fork: null,
+                asked_if: null,
+            },
         ])
         expect(joined(result)).toMatch(/clarification_answers/)
         expect(joined(result)).toMatch(/nothing was charged/i)

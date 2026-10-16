@@ -251,6 +251,10 @@ const generateOutput = z.object({
             question: z.string(),
             why: z.string(),
             options: z.array(z.string()),
+            /** The contract field the answer resolves; null when the question is not a fork. */
+            fork: z.string().nullable(),
+            /** Ask only once `question_id` is answered with one of `values`; null when always asked. */
+            asked_if: z.object({ question_id: z.string(), values: z.array(z.string()) }).nullable(),
         }),
     ),
 })
@@ -279,6 +283,10 @@ const statusOutput = z.object({
             question: z.string(),
             why: z.string(),
             options: z.array(z.string()),
+            /** The contract field the answer resolves; null when the question is not a fork. */
+            fork: z.string().nullable(),
+            /** Ask only once `question_id` is answered with one of `values`; null when always asked. */
+            asked_if: z.object({ question_id: z.string(), values: z.array(z.string()) }).nullable(),
         }),
     ),
 })
@@ -444,7 +452,14 @@ function orderQuestions(questions: ClarifyingQuestion[]): ClarifyingQuestion[] {
 type OfferedQuestion = ReturnType<typeof offeredQuestion>
 
 function structuredQuestion(question: OfferedQuestion) {
-    return { id: question.id, question: question.question, why: question.why, options: question.options }
+    return {
+        id: question.id,
+        question: question.question,
+        why: question.why,
+        options: question.options,
+        fork: question.fork || null,
+        asked_if: question.askedIf ?? null,
+    }
 }
 
 /** Each question as the lines an agent reads: the question, why, and the answers it may send. */

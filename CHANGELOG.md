@@ -13,7 +13,8 @@ new version.
 
 - **Question dependencies are shown.** Clarifying questions print the contract field each one
   resolves ("Resolves: …") and, for a dependent question, "Ask only if <question id> is answered
-  <values>"; dependent questions are listed after the question they depend on.
+  <values>"; dependent questions are listed after the question they depend on. The structured
+  `clarifying_questions` carry the same as `fork` and `asked_if` (null when absent).
 - **A design's platform layer is shown.** `get_design` marks the parts the platform added or
   adopted, with the obligations each satisfies and their policies, lists the drawn connections the
   platform replaced, and marks the platform's decisions "(platform)". Designs without platform
