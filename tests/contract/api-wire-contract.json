@@ -170,6 +170,12 @@
           "nullable": true,
           "item": "EdgeDirectionNotice"
         },
+        "field_locks": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": "FieldLock"
+        },
         "id": {
           "required": true,
           "kind": "scalar",
@@ -263,6 +269,12 @@
         "GET /architectures/{architecture_id}/brief"
       ],
       "fields": {
+        "accepted_risks": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "AcceptedRiskResponse"
+        },
         "architecture_id": {
           "required": true,
           "kind": "scalar",
@@ -1440,6 +1452,18 @@
         "GET /architectures/{architecture_id}/readiness"
       ],
       "fields": {
+        "accepted_risk_count": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "accepted_risks": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "AcceptedRiskResponse"
+        },
         "architecture_id": {
           "required": true,
           "kind": "scalar",
@@ -1863,6 +1887,18 @@
           "nullable": false,
           "item": null
         },
+        "choices": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": "TodoChoice"
+        },
+        "message": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "modification": {
           "required": false,
           "kind": "object",
@@ -1968,6 +2004,12 @@
         "nested in todo.groups[].items"
       ],
       "fields": {
+        "accepted_risk": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "actions": {
           "required": true,
           "kind": "list",

@@ -106,6 +106,8 @@ const QUESTIONS_AND_NOTHING_ELSE =
     'The 409 intent-decision body is read for its clarifying questions and nothing else — the ' +
     'refusal is recognised by their presence, not by anything else in the envelope.'
 
+const LATER_RELEASE = 'Read by the connector in a later release.'
+
 const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
     ArchitectureJsonSchema: {
         grounding:
@@ -137,6 +139,10 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         user_rating: PERSON_FEEDBACK,
         user_feedback_tags: PERSON_FEEDBACK,
         user_approved_at: PERSON_FEEDBACK,
+        field_locks: LATER_RELEASE,
+    },
+    BriefSchema: {
+        accepted_risks: LATER_RELEASE,
     },
     ComponentSchema: {
         source_ids:
@@ -183,13 +189,22 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         brief_preview: QUESTIONS_AND_NOTHING_ELSE,
         intent_preflight_token: QUESTIONS_AND_NOTHING_ELSE,
     },
+    ReadinessSchema: {
+        accepted_risks: LATER_RELEASE,
+        accepted_risk_count: LATER_RELEASE,
+    },
     TodoActionSchema: {
+        choices: LATER_RELEASE,
+        message: LATER_RELEASE,
         modification:
             "The structured change behind the person's one-click Apply, sent so the app can say " +
             'what pressing it would do before they press it. `get-design` already tells an agent ' +
             'that these actions are the person\'s to take, and an agent token reaches no write ' +
             'route — so mirroring it here would describe a button this connector must never press. ' +
             'The problem itself, its detail and the parts it affects are all on the card already.',
+    },
+    TodoItemSchema: {
+        accepted_risk: LATER_RELEASE,
     },
 }
 
