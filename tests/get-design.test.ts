@@ -485,6 +485,17 @@ describe('the requirements a design was built from', () => {
         expect(body).toContain('[proposed] = suggested by the design, not asked for; treat as optional.')
     })
 
+    it('still reads a design whose requirement origin this version has never seen', async () => {
+        await withLedger({
+            rows: [{ id: 'R1', text: 'Imported line.', origin: 'imported', cited_by_components: ['api'] }],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toMatch(/^- R1 .*Imported line\./m)
+        expect(body).not.toContain('[proposed]')
+    })
+
     it('prints no legend when no requirement is proposed', async () => {
         await withLedger({ rows: [{ id: 'R1', text: 'Stated line.', origin: 'stated', cited_by_components: ['api'] }] })
 
