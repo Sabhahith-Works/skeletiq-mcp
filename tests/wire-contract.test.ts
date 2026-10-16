@@ -220,9 +220,6 @@ const KNOWN_DEFECTS: Record<string, Record<string, string>> = {
         fork: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
         asked_if: 'Fork metadata for the guided questions; the connector surfaces it in a later release.',
     },
-    RequirementLedgerRowSchema: {
-        origin: "Whether a requirement was stated or proposed; the connector surfaces it in a later release.",
-    },
 }
 
 // ─── Reading the connector ───────────────────────────────────────────

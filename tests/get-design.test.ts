@@ -468,6 +468,59 @@ describe('the requirements a design was built from', () => {
         )
     })
 
+    it('marks a proposed requirement and leaves stated, accepted and unlabelled ones unmarked', async () => {
+        await withLedger({
+            rows: [
+                { id: 'R1', text: 'Stated line.', origin: 'stated', cited_by_components: ['api'] },
+                { id: 'R2', text: 'Proposed line.', origin: 'proposed', cited_by_components: ['api'] },
+                { id: 'R3', text: 'Accepted line.', origin: 'accepted', cited_by_components: ['api'] },
+                { id: 'R4', text: 'No origin line.', cited_by_components: ['api'] },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toMatch(/^- R2 .*\[proposed\] Proposed line\./m)
+        expect(body).not.toMatch(/\[proposed\] (Stated|Accepted|No origin) line/)
+        expect(body).toContain('[proposed] = suggested by the design, not asked for; treat as optional.')
+    })
+
+    it('prints no legend when no requirement is proposed', async () => {
+        await withLedger({ rows: [{ id: 'R1', text: 'Stated line.', origin: 'stated', cited_by_components: ['api'] }] })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('Stated line.')
+        expect(body).not.toContain('[proposed]')
+    })
+
+    it('marks a proposed requirement in component mode and explains it', async () => {
+        await withLedger({
+            rows: [
+                { id: 'R1', text: 'Stated line.', origin: 'stated', cited_by_components: ['api'] },
+                { id: 'R2', text: 'Proposed line.', origin: 'proposed', cited_by_components: ['api'] },
+            ],
+        })
+
+        const body = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'api' }),
+        )
+
+        expect(body).toMatch(/^- R2 .*\[proposed\] Proposed line\./m)
+        expect(body).toContain('[proposed] = suggested by the design, not asked for; treat as optional.')
+    })
+
+    it('prints no proposed marker or legend in component mode when cited rows are stated only', async () => {
+        await withLedger({ rows: [{ id: 'R1', text: 'Stated line.', origin: 'stated', cited_by_components: ['api'] }] })
+
+        const body = text(
+            await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'component', component_id: 'api' }),
+        )
+
+        expect(body).toContain('Stated line.')
+        expect(body).not.toContain('[proposed]')
+    })
+
     it('counts only what holds a handoff back as failing, and says what a model check\'s doubt is', async () => {
         // A current server says per row whether it blocks. A measured `fails` does; the model
         // check's does not, and reads as unconfirmed with the advice beside it.

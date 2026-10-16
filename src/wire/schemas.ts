@@ -199,6 +199,9 @@ export const RequirementLedgerRowSchema = z.looseObject({
     cited_by_components: z.array(z.string()).nullable().optional(),
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),
+    /** `stated` in the person's own words, `proposed` by the analysis, or `accepted` — a proposal a
+     * person confirmed. Absent from older APIs. */
+    origin: z.enum(['stated', 'proposed', 'accepted']).nullish(),
     added_in_version: z.number().nullable().optional(),
     /** Set only on a row under `RequirementLedger.superseded`: an instruction an earlier analysis
      * recorded as a requirement, now the change request it names (`CR5`). Absent from older APIs. */

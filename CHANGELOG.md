@@ -15,6 +15,9 @@ new version.
   adopted, with the obligations each satisfies and their policies, lists the drawn connections the
   platform replaced, and marks the platform's decisions "(platform)". Designs without platform
   fields read as before.
+- **Proposed requirements are marked.** `get_design` prefixes a requirement the design suggested
+  rather than the person asked for with "[proposed]" and says to treat it as optional. Stated and
+  accepted requirements, and older APIs without the field, read as before.
 
 ## [0.4.0] — 2026-09-28
 

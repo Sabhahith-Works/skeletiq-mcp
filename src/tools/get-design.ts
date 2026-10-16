@@ -482,6 +482,7 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
         'established either way, and neither is fine. `cited by nothing` means no component and no',
         'decision in the design claims to address it.',
         ...unconfirmedLegend(rows),
+        ...proposedLegend(rows),
         // Two facts about how far the statuses can be trusted, said only when the server states
         // them. An absent `verification_state` is an older server, not a verifier that did not run,
         // and claiming the second would be this package inventing a fact about someone's design.
@@ -500,6 +501,13 @@ function requirementBlock(ledger: RequirementLedger | undefined): string[] {
             ? ['The requirements analysis for this version ran degraded. Treat the list as incomplete.']
             : []),
     ]
+}
+
+/** Said under a list only when a row in it is proposed. */
+function proposedLegend(rows: RequirementLedgerRow[]): string[] {
+    return rows.some((row) => row.origin === 'proposed')
+        ? ['[proposed] = suggested by the design, not asked for; treat as optional.']
+        : []
 }
 
 /**
@@ -554,6 +562,7 @@ function requirementsServed(rows: RequirementLedgerRow[] | undefined): string[] 
         '`fails` — a named check measured the design as not meeting it; `not_checked` — nobody',
         'established either way; `no_gap_found` — nothing contradicted it, which is not the same as proven.',
         ...unconfirmedLegend(rows),
+        ...proposedLegend(rows),
     ]
 }
 
@@ -606,7 +615,8 @@ function requirementLine(row: RequirementLedgerRow): string {
     const reason = (row.verdict_reason ?? '').replace(/\s+/g, ' ').trim()
     const by = (row.checked_by ?? '').trim()
     const because = reason ? ` — ${reason}${by ? ` (checked by ${by})` : ''}` : by ? ` — checked by ${by}` : ''
-    return `- ${row.id}${label} ${text || '(no text recorded for this requirement)'}${because}`
+    const proposed = row.origin === 'proposed' ? '[proposed] ' : ''
+    return `- ${row.id}${label} ${proposed}${text || '(no text recorded for this requirement)'}${because}`
 }
 
 /**
