@@ -539,6 +539,12 @@
           "nullable": true,
           "item": null
         },
+        "decision_ids": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
+          "item": null
+        },
         "description": {
           "required": false,
           "kind": "scalar",

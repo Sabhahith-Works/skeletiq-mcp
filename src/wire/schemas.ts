@@ -58,6 +58,8 @@ export const ComponentSchema = z.looseObject({
     /** Why the component is in the design (`core`, `security`, …) — see the API's `component_concerns`. */
     concern: z.string().nullable().optional(),
     requirement_ids: z.array(z.string()).nullable().optional(),
+    /** Ids of the decision records this component realizes, e.g. `database.primary`. */
+    decision_ids: z.array(z.string()).nullable().optional(),
 })
 export type Component = z.infer<typeof ComponentSchema>
 
