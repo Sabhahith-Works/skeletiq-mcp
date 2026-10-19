@@ -2098,3 +2098,85 @@ describe('the platform layer', () => {
 function text(result: { content: { text?: string }[] }): string {
     return result.content.map((block) => block.text ?? '').join('\n')
 }
+
+describe('decisions', () => {
+    const RECORD = {
+        id: 'database.primary',
+        question: 'Which database?',
+        title: 'Primary database',
+        options: [
+            { id: 'pg', label: 'PostgreSQL', rejected_because: null },
+            { id: 'mongo', label: 'MongoDB', rejected_because: 'The data is relational.' },
+        ],
+        chosen: 'pg',
+        why: 'Joins dominate the access pattern.',
+        basis_removed: [] as string[],
+    }
+    const decisionsBody = (records: unknown[]) => ({
+        architecture_id: ARCH_V2,
+        version: 2,
+        status: 'ok',
+        records,
+    })
+
+    it('lists each decision with its id, choice, reasons and rejected options', async () => {
+        await open([{ match: `GET /api/v1/architectures/${ARCH_V2}/decisions`, body: decisionsBody([RECORD]) }])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'decisions' })
+
+        expect(text(result)).toMatch(/- database\.primary: Primary database/)
+        expect(text(result)).toMatch(/chosen: PostgreSQL/)
+        expect(text(result)).toMatch(/why: Joins dominate the access pattern\./)
+        expect(text(result)).toMatch(/rejected: MongoDB \(The data is relational\.\)/)
+        expect(text(result)).not.toMatch(/ask before building on it/)
+    })
+
+    it('flags a decision whose basis was removed', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/decisions`,
+                body: decisionsBody([{ ...RECORD, basis_removed: ['R3'] }]),
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'decisions' })
+
+        expect(text(result)).toMatch(/cites removed requirement R3; ask before building on it/)
+    })
+
+    it('says so when the version records no decisions', async () => {
+        await open([{ match: `GET /api/v1/architectures/${ARCH_V2}/decisions`, body: decisionsBody([]) }])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'decisions' })
+
+        expect(text(result)).toMatch(/This version records no decisions\./)
+    })
+
+    it('says the decisions could not be read rather than that there are none', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/decisions`,
+                body: { ...decisionsBody([]), status: 'unavailable', reason: 'unreadable' },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'decisions' })
+
+        expect(text(result)).toMatch(/could not be read \(unreadable\)/)
+        expect(text(result)).not.toMatch(/records no decisions/)
+    })
+
+    it('says the server does not share decisions with tokens on a 403', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/decisions`,
+                status: 403,
+                body: { error: { code: 'FORBIDDEN', message: 'Forbidden' } },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'decisions' })
+
+        expect(text(result)).toMatch(/This SkeletIQ server does not share decisions with tokens yet\./)
+    })
+})

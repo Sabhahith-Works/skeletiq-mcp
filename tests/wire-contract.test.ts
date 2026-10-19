@@ -109,6 +109,22 @@ const QUESTIONS_AND_NOTHING_ELSE =
 const LATER_RELEASE = 'Read by the connector in a later release.'
 
 const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
+    DecisionRecordViewSchema: {
+        question: 'The title and the chosen option already say what was decided; the question restates it.',
+        basis: 'How the record was reached (decided, answered, defaulted…) is provenance for the person reading the design.',
+        citations: 'Retrieved sources quoted for the why; the why is what an agent acts on.',
+        consequences: 'Prose about what the choice costs; the chosen option and why are what an agent builds from.',
+        requirement_ids: 'The agent is told when a cited requirement is gone through `basis_removed`; the full list is on the requirements ledger.',
+        supersedes: 'The incumbent a changed record replaced; a history note for the person, not a build instruction.',
+        decided_in_version: 'When the choice was first made; the version the agent reads is the one it builds.',
+        conformance: 'Whether components follow the choice is a verdict shown to the person in the SPA and already in the design check.',
+        adr: 'A record’s place in the ADR log, derived on read for the SPA.',
+    },
+    DecisionsViewResponseSchema: {
+        citation: 'The citation report across domain nodes, a design-quality diagnostic for the SPA.',
+        derived_from_version: 'The version the records were first derived from; the agent reads the version it asked for.',
+        dropped_count: 'How many records the decide stage dropped; the agent has no use for a count of records it is not shown.',
+    },
     ArchitectureJsonSchema: {
         grounding:
             'Analysis of how the design was produced, not the design. `lib/slice.ts` states the ' +

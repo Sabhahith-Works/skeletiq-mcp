@@ -847,6 +847,162 @@
         }
       }
     },
+    "DecisionRecordViewSchema": {
+      "python_model": "app.schemas.decisions.DecisionRecordView",
+      "authority": "nested",
+      "endpoints": [
+        "nested in decisions.records"
+      ],
+      "fields": {
+        "adr": {
+          "required": true,
+          "kind": "object",
+          "nullable": false,
+          "item": "DecisionAdrLink"
+        },
+        "basis": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "basis_removed": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "chosen": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "citations": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "DecisionCitation"
+        },
+        "conformance": {
+          "required": true,
+          "kind": "object",
+          "nullable": false,
+          "item": "DecisionConformance"
+        },
+        "consequences": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "decided_in_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "options": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "DecisionOption"
+        },
+        "question": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "requirement_ids": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "supersedes": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "DecisionSupersedes"
+        },
+        "title": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "why": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "DecisionsViewResponseSchema": {
+      "python_model": "app.schemas.decisions.DecisionsViewResponse",
+      "authority": "response_model",
+      "endpoints": [
+        "GET /architectures/{architecture_id}/decisions"
+      ],
+      "fields": {
+        "architecture_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "citation": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "DecisionCitationReport"
+        },
+        "derived_from_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "dropped_count": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "reason": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "records": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": "DecisionRecordView"
+        },
+        "status": {
+          "required": true,
+          "kind": "union",
+          "nullable": false,
+          "item": null
+        },
+        "version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
     "DesignGapListSchema": {
       "python_model": "app.schemas.handoff.DesignGapListResponse",
       "authority": "response_model",

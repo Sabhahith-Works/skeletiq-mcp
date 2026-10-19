@@ -659,6 +659,31 @@ export const FitnessTestsSchema = z.looseObject({
     unavailable: z.string().nullable().optional(),
 })
 
+/** One option of a decision; `rejected_because` is null on the chosen one. */
+const DecisionOptionSchema = z.looseObject({
+    id: z.string(),
+    label: z.string(),
+    rejected_because: z.string().nullable().optional(),
+})
+
+/** A decision as the view reports it. `basis_removed` names cited requirements no longer in the ledger. */
+export const DecisionRecordViewSchema = z.looseObject({
+    id: z.string(),
+    title: z.string(),
+    chosen: z.string(),
+    why: z.string(),
+    options: z.array(DecisionOptionSchema),
+    basis_removed: z.array(z.string()).default([]),
+})
+
+export const DecisionsViewResponseSchema = z.looseObject({
+    architecture_id: z.string(),
+    version: z.number(),
+    status: z.string(),
+    reason: z.string().nullable().optional(),
+    records: z.array(DecisionRecordViewSchema).default([]),
+})
+
 // ─── Generation ──────────────────────────────────────────────────────
 
 /**

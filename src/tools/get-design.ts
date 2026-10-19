@@ -33,6 +33,7 @@ import {
     BriefSchema,
     BuildOrderSchema,
     DesignGapListSchema,
+    DecisionsViewResponseSchema,
     FitnessTestsSchema,
     ReadinessSchema,
     TodoSchema,
@@ -42,7 +43,7 @@ import {
     type TodoItem,
 } from '../wire/schemas.js'
 
-const MODES = ['overview', 'component', 'brief', 'todo', 'readiness', 'build_order', 'gaps', 'fitness'] as const
+const MODES = ['overview', 'component', 'brief', 'todo', 'readiness', 'build_order', 'gaps', 'fitness', 'decisions'] as const
 
 const input = z.object({
     project_id: z.string().describe('A SkeletIQ project id, or its exact name.'),
@@ -59,7 +60,8 @@ const input = z.object({
                 'readiness: the verdict, gate by gate, on whether this design is worth building yet. ' +
                 'build_order: the order to build components in, and why. ' +
                 'gaps: the open questions and unconfirmed assumptions in the design. ' +
-                'fitness: the tests to write in your own repo, each with the id to report back through check_drift.',
+                'fitness: the tests to write in your own repo, each with the id to report back through check_drift. ' +
+                'decisions: the design\'s decisions, each with its id, choice, reasons and any removed basis.',
         ),
     component_id: z.string().optional().describe('Required for mode "component". The component id, or its name.'),
     version: z
@@ -422,6 +424,51 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                                 `  check: ${test.check}`,
                                 `  test_id: ${test.id}`,
                             ]),
+                            '',
+                            versionLine(facts),
+                        ].join('\n'))
+                    }
+
+                    case 'decisions': {
+                        const facts = factsFrom(resolved)
+                        let body: unknown
+                        try {
+                            body = await client.request<unknown>(`/architectures/${resolved.architectureId}/decisions`)
+                        } catch (error) {
+                            if (error instanceof SkeletiqApiError && error.status === 403) {
+                                return ok({ ...base, ...facts, data: { records: [] } }, [
+                                    'This SkeletIQ server does not share decisions with tokens yet.',
+                                    versionLine(facts),
+                                ].join('\n'))
+                            }
+                            throw error
+                        }
+                        const decisions = DecisionsViewResponseSchema.parse(body)
+                        if (decisions.records.length === 0) {
+                            return ok({ ...base, ...facts, data: decisions }, [
+                                decisions.status === 'unavailable'
+                                    ? `This version's decisions could not be read (${decisions.reason ?? 'unknown'}).`
+                                    : 'This version records no decisions.',
+                                versionLine(facts),
+                            ].join('\n'))
+                        }
+                        return ok({ ...base, ...facts, data: decisions }, [
+                            ...decisions.records.flatMap((record) => {
+                                const chosen = record.options.find((option) => option.id === record.chosen)
+                                const rejected = record.options.filter((option) => option.id !== record.chosen)
+                                return [
+                                    '',
+                                    `- ${record.id}: ${record.title}`,
+                                    `  chosen: ${chosen?.label ?? record.chosen}`,
+                                    `  why: ${record.why}`,
+                                    ...rejected.map(
+                                        (option) => `  rejected: ${option.label}${option.rejected_because ? ` (${option.rejected_because})` : ''}`,
+                                    ),
+                                    ...(record.basis_removed.length > 0
+                                        ? [`  cites removed requirement ${record.basis_removed.join(', ')}; ask before building on it`]
+                                        : []),
+                                ]
+                            }),
                             '',
                             versionLine(facts),
                         ].join('\n'))
