@@ -120,6 +120,11 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         conformance: 'Whether components follow the choice is a verdict shown to the person in the SPA and already in the design check.',
         adr: 'A record’s place in the ADR log, derived on read for the SPA.',
     },
+    DecisionRequestSchema: {
+        evidence: 'The path and outcome of the checks the agent itself sent; it is not handed them back.',
+        created_at: 'When the request was filed; the agent polls the status, not the clock.',
+        resolved_at: 'When a person answered; the status and the version it landed in say what the agent acts on.',
+    },
     DecisionsViewResponseSchema: {
         citation: 'The citation report across domain nodes, a design-quality diagnostic for the SPA.',
         derived_from_version: 'The version the records were first derived from; the agent reads the version it asked for.',

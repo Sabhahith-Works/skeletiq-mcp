@@ -13,6 +13,7 @@ import { SERVER_NAME, SERVER_VERSION, type Config } from './config.js'
 import { SkeletiqClient } from './http/client.js'
 import { DesignResolver } from './lib/resolve.js'
 import { registerCheckDrift } from './tools/check-drift.js'
+import { registerRequestDecisionChange } from './tools/request-decision-change.js'
 import { registerCritique } from './tools/critique.js'
 import { registerGenerate } from './tools/generate.js'
 import { registerGetDesign } from './tools/get-design.js'
@@ -80,6 +81,7 @@ function buildServer(client: SkeletiqClient, resolver: DesignResolver): McpServe
     registerGenerate(server, client, resolver)
     registerCritique(server, client)
     registerCheckDrift(server, client, resolver)
+    registerRequestDecisionChange(server, client, resolver)
 
     return server
 }

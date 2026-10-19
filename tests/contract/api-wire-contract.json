@@ -946,6 +946,118 @@
         }
       }
     },
+    "DecisionRequestSchema": {
+      "python_model": "app.schemas.agent_build.DecisionRequestResponse",
+      "authority": "response_model",
+      "endpoints": [
+        "POST /architectures/{architecture_id}/decision-requests",
+        "GET /decision-requests/{request_id}"
+      ],
+      "fields": {
+        "accepted_in_version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "architecture_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "created_at": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "decision_current": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "decision_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "decision_title": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "evidence": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "EvidenceCheck"
+        },
+        "id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "latest_version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "project_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "proposed": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "resolution_note": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "resolved_at": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "schema_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "status": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "why": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
     "DecisionsViewResponseSchema": {
       "python_model": "app.schemas.decisions.DecisionsViewResponse",
       "authority": "response_model",

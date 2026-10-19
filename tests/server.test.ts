@@ -13,7 +13,7 @@ afterEach(async () => {
 })
 
 describe('the tool surface', () => {
-    it('is exactly the six tools, under the names the product already published', async () => {
+    it('is exactly the seven tools, under the names the product already published', async () => {
         harness = await startHarness(fakeApi(baseRoutes()).fetch)
 
         const names = (await harness.listTools()).map((tool) => tool.name).sort()
@@ -28,6 +28,7 @@ describe('the tool surface', () => {
             'get_design',
             'get_generation_status',
             'list_projects',
+            'request_decision_change',
         ])
     })
 

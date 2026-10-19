@@ -8,6 +8,8 @@
 import { realpath, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
+import * as z from 'zod/v4'
+
 export const MAX_EVIDENCE_BYTES = 1_000_000
 export const MAX_REFS_PER_CLAIM = 5
 
@@ -21,6 +23,27 @@ export interface EvidenceResult {
     path: string
     status: 'verified' | 'failed'
     reason?: string
+}
+
+/** One citation an agent gives for a claim: a file, and a quote or symbol that must be in it. */
+export const evidenceRef = z
+    .object({
+        path: z.string().min(1).max(512).describe('The file, relative to the repo root.'),
+        quote: z.string().min(1).max(2000).optional().describe('Text that must appear in the file. Checked locally, never sent.'),
+        symbol: z.string().min(1).max(255).optional().describe('An identifier that must appear in the file. Checked locally, never sent.'),
+    })
+    .refine((ref) => ref.quote !== undefined || ref.symbol !== undefined, {
+        message: 'each evidence entry needs a quote or a symbol',
+    })
+
+/** The repository root, resolved; null when it is missing or not a directory. */
+export async function resolveRepoRoot(requested: string): Promise<string | null> {
+    try {
+        const root = await realpath(requested)
+        return (await stat(root)).isDirectory() ? root : null
+    } catch {
+        return null
+    }
 }
 
 const MAX_PATH = 512

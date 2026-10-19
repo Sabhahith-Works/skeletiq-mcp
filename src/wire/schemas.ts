@@ -636,6 +636,24 @@ export const DriftSchema = z.looseObject({
     schema_version: z.number().optional(),
 })
 
+/** A decision change request: what the agent asked for, and where a person's answer stands. */
+export const DecisionRequestSchema = z.looseObject({
+    id: z.string(),
+    project_id: z.string(),
+    architecture_id: z.string().nullable(),
+    version: z.number(),
+    decision_id: z.string(),
+    decision_title: z.string(),
+    proposed: z.string(),
+    why: z.string(),
+    status: z.enum(['pending', 'accepted', 'dismissed']),
+    resolution_note: z.string().nullable(),
+    accepted_in_version: z.number().nullable(),
+    latest_version: z.number(),
+    decision_current: z.boolean().optional(),
+    schema_version: z.number().optional(),
+})
+
 /** One test the agent writes in its own repo; `id` is what it reports back through `check_drift.fitness`. */
 export const FitnessTestSchema = z.looseObject({
     id: z.string(),

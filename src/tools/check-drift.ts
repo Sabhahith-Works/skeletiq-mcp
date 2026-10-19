@@ -15,27 +15,15 @@
  * reporting against that guess, is a wrong answer wearing a right answer's clothes.
  */
 
-import { realpath, stat } from 'node:fs/promises'
-
 import * as z from 'zod/v4'
 
 import type { McpServer } from '@modelcontextprotocol/server'
 
 import type { SkeletiqClient } from '../http/client.js'
-import { MAX_REFS_PER_CLAIM, verifyEvidence, type EvidenceResult } from '../lib/evidence.js'
+import { MAX_REFS_PER_CLAIM, evidenceRef, resolveRepoRoot, verifyEvidence, type EvidenceResult } from '../lib/evidence.js'
 import { factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
 import { DriftSchema } from '../wire/schemas.js'
-
-const evidenceRef = z
-    .object({
-        path: z.string().min(1).max(512).describe('The file, relative to the repo root.'),
-        quote: z.string().min(1).max(2000).optional().describe('Text that must appear in the file. Checked locally, never sent.'),
-        symbol: z.string().min(1).max(255).optional().describe('An identifier that must appear in the file. Checked locally, never sent.'),
-    })
-    .refine((ref) => ref.quote !== undefined || ref.symbol !== undefined, {
-        message: 'each evidence entry needs a quote or a symbol',
-    })
 
 const input = z.object({
     project_id: z.string().describe('A SkeletIQ project id, or its exact name.'),
@@ -157,13 +145,8 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
         async ({ project_id, version, repo_root, covers, components, extra_components, extra_connections, fitness }) =>
             guard(async () => {
                 const requested = repo_root ?? process.cwd()
-                let root: string
-                try {
-                    root = await realpath(requested)
-                    if (!(await stat(root)).isDirectory()) throw new Error('not a directory')
-                } catch {
-                    return failure(`repo_root ${requested} cannot be read`)
-                }
+                const root = await resolveRepoRoot(requested)
+                if (root === null) return failure(`repo_root ${requested} cannot be read`)
 
                 const checked = await Promise.all(
                     components.map(async ({ evidence, ...component }) => ({

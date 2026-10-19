@@ -64,14 +64,14 @@ A token grants only what you tick. The server's tools need:
 |---|---|---|
 | `read` | Projects, designs, briefs, build order, readiness, gaps, jobs | `list_projects`, `get_design`, `get_generation_status` |
 | `generate` | Running generations — **that spends credits** — and payload critique, which is free | `generate_architecture`, `critique_architecture` |
-| `report` | Recording what got built. **Needs `read` as well** | `check_drift` |
+| `report` | Recording what got built, and asking a person to change a decision. **Needs `read` as well** | `check_drift`, `request_decision_change` |
 
 `read` alone is a good starting point: the agent can orient and build, but cannot spend anything.
 
 Two things the table above cannot say in a cell:
 
-- **`report` on its own does nothing.** `check_drift` looks the project and the version up before it
-  can report against them, and those lookups are `read`. A `report`-only token is refused.
+- **`report` on its own does nothing.** `check_drift` and `request_decision_change` look the project and the version up before
+  they can report against them, and those lookups are `read`. A `report`-only token is refused.
 - **`generate` without `read` still generates**, but the answer is thinner: the tool reads back the
   design it just created to describe it, and reports that failure as a thinner answer rather than a
   failed generation — telling an agent the generation failed would invite it to pay for the whole
@@ -90,6 +90,7 @@ change your provider keys, see billing, or delete your account, whatever scopes 
 | `get_generation_status` | Poll a generation started with `wait: false`. |
 | `critique_architecture` | Check a design against SkeletIQ's rules. Deterministic, free, stores nothing. Tell it the `domain` and the `exposure`. |
 | `check_drift` | Report what you built; hear what is missing, half done, or not in the design. |
+| `request_decision_change` | Ask a person to change a design decision, or poll a request you filed. A person on the project reviews it in To-do; nothing changes until they accept. |
 
 ## How a session goes
 
