@@ -19,6 +19,7 @@ import * as z from 'zod/v4'
 
 import type { McpServer } from '@modelcontextprotocol/server'
 
+import { schemaNote } from '../config.js'
 import type { SkeletiqClient } from '../http/client.js'
 import { MAX_REFS_PER_CLAIM, evidenceRef, resolveRepoRoot, verifyEvidence, type EvidenceResult } from '../lib/evidence.js'
 import { factsFromRelease, type DesignResolver } from '../lib/resolve.js'
@@ -268,6 +269,8 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
                     lines.push('This SkeletIQ server does not check evidence yet; these are unverified claims.')
                 }
                 lines.push(`Checked against ${root}`)
+                const note = schemaNote(report.schema_version)
+                if (note) lines.push(note)
                 lines.push(versionLine(facts))
                 return ok(structured, lines.join('\n'))
             }),

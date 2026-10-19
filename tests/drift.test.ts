@@ -269,6 +269,19 @@ describe('local evidence', () => {
         )
     })
 
+    it('notes a newer agent schema only when the server reports one', async () => {
+        const newer = fakeApi(baseRoutes([driftRoute({ in_sync: true, evidence_checked: true, schema_version: 3 })]))
+        harness = await startHarness(newer.fetch)
+        const ahead = await harness.call('check_drift', { project_id: PROJECT_ID, components: [] })
+        expect(joined(ahead)).toContain('A newer @skeletiq/mcp understands more of this server')
+        await harness.close()
+
+        const same = fakeApi(baseRoutes([driftRoute({ in_sync: true, evidence_checked: true, schema_version: 2 })]))
+        harness = await startHarness(same.fetch)
+        const current = await harness.call('check_drift', { project_id: PROJECT_ID, components: [] })
+        expect(joined(current)).not.toContain('A newer @skeletiq/mcp')
+    })
+
     it('errors without sending anything when repo_root cannot be read', async () => {
         const api = fakeApi(baseRoutes([driftRoute({ in_sync: true })]))
         harness = await startHarness(api.fetch)
