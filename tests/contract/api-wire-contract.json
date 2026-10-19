@@ -866,6 +866,12 @@
           "nullable": false,
           "item": "DesignGapResponse"
         },
+        "minted_architecture_id": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "orphaned_answers": {
           "required": false,
           "kind": "list",

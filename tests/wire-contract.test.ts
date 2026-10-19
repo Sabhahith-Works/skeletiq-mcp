@@ -170,6 +170,9 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
         score_if_cleared: NARROWED_BY_CRITIQUE_TOOL,
         score_if_root_fact_cleared: NARROWED_BY_CRITIQUE_TOOL,
     },
+    DesignGapListSchema: {
+        minted_architecture_id: LATER_RELEASE,
+    },
     GenerateResponseSchema: {
         critique: REVIEW_OUTPUT,
         diagram_source: RENDERED_ARTEFACT,
