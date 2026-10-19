@@ -992,6 +992,12 @@
           "nullable": false,
           "item": "ComponentRefResponse"
         },
+        "evidence_checked": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "extra_components": {
           "required": true,
           "kind": "list",
@@ -1003,6 +1009,24 @@
           "kind": "list",
           "nullable": false,
           "item": "ReportedConnectionRequest"
+        },
+        "fitness_failing": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "fitness_unknown": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "fitness_unverified": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
         },
         "in_sync": {
           "required": true,
@@ -1028,6 +1052,12 @@
           "nullable": false,
           "item": "ReleaseFactsResponse"
         },
+        "schema_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "unknown_ids": {
           "required": true,
           "kind": "list",
@@ -1036,6 +1066,12 @@
         },
         "unreported": {
           "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "ComponentRefResponse"
+        },
+        "unverified": {
+          "required": false,
           "kind": "list",
           "nullable": false,
           "item": "ComponentRefResponse"
@@ -1475,6 +1511,12 @@
           "kind": "scalar",
           "nullable": false,
           "item": null
+        },
+        "headline": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "VerdictHeadline"
         },
         "ready": {
           "required": true,
