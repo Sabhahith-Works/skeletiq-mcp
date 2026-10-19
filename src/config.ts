@@ -8,6 +8,15 @@
 export const SERVER_NAME = 'skeletiq'
 export const SERVER_VERSION = '0.4.0'
 
+/** The public version of the agent surface this server was written against. */
+export const AGENT_SCHEMA_VERSION = 2
+
+/** A note for when the server reports a newer agent schema version than this server knows. */
+export function schemaNote(serverVersion?: number): string | null {
+    if (serverVersion === undefined || serverVersion <= AGENT_SCHEMA_VERSION) return null
+    return 'A newer @skeletiq/mcp understands more of this server; update when you can.'
+}
+
 /** The hosted API. Overridden only for self-hosted installs and local development. */
 export const DEFAULT_API_URL = 'https://api.skeletiq.com'
 

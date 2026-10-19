@@ -216,7 +216,6 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
     ReadinessSchema: {
         accepted_risks: LATER_RELEASE,
         accepted_risk_count: LATER_RELEASE,
-        headline: LATER_RELEASE,
     },
     TodoActionSchema: {
         choices: LATER_RELEASE,

@@ -185,7 +185,7 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                 }
 
                 const lines = [
-                    `Architecture ${round(critique.architecture_score)}/100 · ` +
+                    `Design quality ${round(critique.architecture_score)}/100 · ` +
                         `security ${round(critique.security_score)} · performance ${round(critique.performance_score)} · ` +
                         `resilience ${round(critique.resilience_score)} · data ${round(critique.data_score)}`,
                     SCORE_BASIS_NOTE,

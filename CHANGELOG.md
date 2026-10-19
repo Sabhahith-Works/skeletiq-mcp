@@ -9,7 +9,26 @@ new version.
 
 ## [Unreleased]
 
+### Changed
+
+- `critique_architecture` labels its blended score "Design quality" (was "Architecture").
+
 ### Added
+
+- **Verdict-first headline.** `get_design(mode: "readiness")` opens with the server's headline
+  ("22 of 24 met · Ready · score 87") and, when the version was judged by older rules than today's,
+  "Rules updated since this check". Older servers without the field read as before.
+- **Agent schema version.** This package knows the agent schema version it was written against (2)
+  and, when `get_design(mode: "fitness")` reports a newer one from the SkeletIQ server, adds a line
+  saying a newer `@skeletiq/mcp` understands more.
+- **Decisions mode.** `get_design(mode: "decisions")` lists a version's decisions: the option
+  chosen, why, what was rejected, and any removed requirement a decision still cites.
+- **Decision requests.** `request_decision_change` proposes a change to a decision and says why;
+  a person answers it in the app, and the request appears in their to-do list.
+- **Fitness tests.** `get_design(mode: "fitness")` lists the tests to write in your own repo, and
+  `check_drift` accepts each result under its `test_id`.
+- **Evidence checks.** `check_drift` can report that a component is implemented with a citation, and
+  names covered components whose citation did not verify.
 
 - **Question dependencies are shown.** Clarifying questions print the contract field each one
   resolves ("Resolves: …") and, for a dependent question, "Ask only if <question id> is answered

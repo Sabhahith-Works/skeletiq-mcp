@@ -85,7 +85,7 @@ change your provider keys, see billing, or delete your account, whatever scopes 
 | Tool | What it does |
 |---|---|
 | `list_projects` | Find a project by name. Returns the candidates rather than guessing between them. |
-| `get_design` | Read a design, in one of six modes: `overview`, `component`, `brief`, `readiness`, `build_order`, `gaps`. Where a version records its requirements, `overview` and `component` resolve the design's `R`-ids to the requirements they name, and say what became of each. |
+| `get_design` | Read a design, in one of nine modes: `overview`, `component`, `brief`, `todo`, `readiness`, `build_order`, `gaps`, `fitness`, `decisions`. `readiness` opens with a verdict-first headline ("22 of 24 met · Ready · score 87"). `fitness` lists the tests to write in your own repo and report through `check_drift`; `decisions` lists the version's decisions with what was chosen, why, and what was rejected. Where a version records its requirements, `overview` and `component` resolve the design's `R`-ids to the requirements they name, and say what became of each. |
 | `generate_architecture` | Design a system from a prompt. Spends credits and takes minutes. A prompt that states no load comes back with a question instead, and nothing is charged: ask your human, and answer "Not sure yet" when they do not know rather than guessing. |
 | `get_generation_status` | Poll a generation started with `wait: false`. |
 | `critique_architecture` | Check a design against SkeletIQ's rules. Deterministic, free, stores nothing. Tell it the `domain` and the `exposure`. |

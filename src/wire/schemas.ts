@@ -380,6 +380,17 @@ export const ReadinessSchema = z.looseObject({
      * caller falls back to the boolean.
      */
     verdict: z.enum(['ready', 'outstanding', 'unanswered']).optional(),
+    /** The verdict-first summary of the rows. Absent from servers that predate it. */
+    headline: z
+        .looseObject({
+            met: z.number(),
+            total: z.number(),
+            verdict: z.enum(['ready', 'outstanding', 'unanswered']),
+            score: z.number(),
+            rules_updated: z.boolean().optional(),
+        })
+        .nullable()
+        .optional(),
     unknown_gate_count: z.number().optional(),
     /** Keys of advisory rows whose check never ran. Named, never counted. */
     unrun_checks: z.array(z.string()).optional(),

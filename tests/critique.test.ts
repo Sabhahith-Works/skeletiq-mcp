@@ -177,6 +177,19 @@ describe('which number this is', () => {
         expect(text).toMatch(/findings only/i)
         expect(text).toMatch(/traceability ceiling/i)
     })
+
+    it('labels the blended score "Design quality"', async () => {
+        await open()
+
+        const result = await harness!.call('critique_architecture', {
+            architecture_json: ARCHITECTURE,
+            domain: 'e-commerce',
+        })
+
+        const first = (result.content?.[0]?.text ?? '').split('\n')[0] ?? ''
+        expect(first.startsWith('Design quality ')).toBe(true)
+        expect(first).not.toMatch(/Architecture \d+(\.\d+)?\/100/)
+    })
 })
 
 describe('where the framework set came from', () => {

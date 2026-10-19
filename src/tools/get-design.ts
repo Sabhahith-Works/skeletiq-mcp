@@ -15,6 +15,7 @@ import * as z from 'zod/v4'
 import type { McpServer } from '@modelcontextprotocol/server'
 
 import type { SkeletiqClient } from '../http/client.js'
+import { schemaNote } from '../config.js'
 import { SkeletiqApiError } from '../http/errors.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
@@ -316,15 +317,25 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         const unrun = new Set(readiness.unrun_checks ?? [])
                         const verdict =
                             readiness.verdict ?? (readiness.ready ? 'ready' : 'outstanding')
-                        const headline =
+                        const gateLine =
                             verdict === 'ready'
                                 ? 'Every gate is clear — this design is ready to build.'
                                 : verdict === 'unanswered'
                                   ? `Nothing is undecided, but ${unanswered.length} check(s) could not be answered for this version:`
                                   : `${open.length} of ${gates.length} gate(s) still open:`
                         const listed = verdict === 'unanswered' ? unanswered : open
+                        const summary = readiness.headline
                         return ok({ ...base, ...facts, data: readiness }, [
-                            headline,
+                            ...(summary
+                                ? [
+                                      `${summary.met} of ${summary.total} met · ` +
+                                          `${summary.verdict.charAt(0).toUpperCase()}${summary.verdict.slice(1)} · ` +
+                                          `score ${Math.round(summary.score)}`,
+                                      ...(summary.rules_updated ? ['Rules updated since this check'] : []),
+                                      '',
+                                  ]
+                                : []),
+                            gateLine,
                             ...listed.map((row) => `- ${row.label}: ${describeRow(row)}`),
                             ...(unconfirmedGates.length
                                 ? ['',
@@ -411,7 +422,9 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                         if (fitness.unavailable) {
                             return ok({ ...base, ...facts, data: fitness }, [fitness.unavailable, versionLine(facts)].join('\n'))
                         }
+                        const note = schemaNote(fitness.schema_version)
                         return ok({ ...base, ...facts, data: fitness }, [
+                            ...(note ? [note, ''] : []),
                             fitness.tests.length === 0
                                 ? 'This version has no fitness tests to write.'
                                 : 'Write these tests in your own repo. Each is a spec, not code. Report each result through ' +

@@ -1298,6 +1298,86 @@ describe('the to do list', () => {
 })
 
 describe('readiness and gaps', () => {
+    const readinessBody = (extra: Record<string, unknown>) => ({
+        architecture_id: ARCH_V2,
+        version: 2,
+        ready: true,
+        verdict: 'ready',
+        rows: [],
+        release: RELEASE_FACTS,
+        ...extra,
+    })
+
+    it('opens with the headline and the rules-updated line', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: readinessBody({
+                    headline: {
+                        met: 22,
+                        total: 24,
+                        accepted_risks: 0,
+                        verdict: 'ready',
+                        score: 87.4,
+                        band: 'clear',
+                        rules_updated: true,
+                        rules_version: 'a/b',
+                        current_rules_version: 'c/d',
+                    },
+                }),
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+
+        expect(
+            body.startsWith('22 of 24 met · Ready · score 87\nRules updated since this check\n\nEvery gate is clear'),
+        ).toBe(true)
+    })
+
+    it('falls back to the gate line when the headline is null', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: readinessBody({
+                    ready: false,
+                    verdict: 'outstanding',
+                    headline: null,
+                    rows: [
+                        { key: 'open_questions', label: 'Open questions unanswered', count: 2, state: 'attention', category: 'gate', gating: true },
+                    ],
+                }),
+            },
+        ])
+        const nullBody = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+        expect(nullBody.split('\n')[0]).toBe('1 of 1 gate(s) still open:')
+        expect(nullBody).not.toMatch(/met ·/)
+    })
+
+    it('prints no rules-updated line when rules_updated is false', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/readiness`,
+                body: readinessBody({
+                    headline: {
+                        met: 24,
+                        total: 24,
+                        accepted_risks: 0,
+                        verdict: 'ready',
+                        score: 41.6,
+                        band: 'clear',
+                        rules_updated: false,
+                        rules_version: 'a/b',
+                        current_rules_version: 'a/b',
+                    },
+                }),
+            },
+        ])
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'readiness' }))
+        expect(body.split('\n')[0]).toBe('24 of 24 met · Ready · score 42')
+        expect(body).not.toMatch(/Rules updated/)
+    })
+
     it('separates the gates from the advisories and says only a person clears a gate', async () => {
         await open([
             {
@@ -1884,6 +1964,33 @@ describe('fitness tests', () => {
         level: 'must',
         layer: 'domain',
     }
+
+    const NEWER = 'A newer @skeletiq/mcp understands more of this server; update when you can.'
+
+    it.each([
+        [3, true],
+        [2, false],
+        [undefined, false],
+    ])('schema_version %s: newer-package note present is %s', async (version, present) => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/fitness-tests`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    tests: [TEST],
+                    total: 1,
+                    truncated: false,
+                    ...(version === undefined ? {} : { schema_version: version }),
+                },
+            },
+        ])
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'fitness' }))
+
+        if (present) expect(body.split('\n')[0]).toBe(NEWER)
+        else expect(body).not.toContain(NEWER)
+    })
 
     it('lists each test with its assertion, check, level and the id to report back', async () => {
         await open([
