@@ -135,7 +135,7 @@ describe('polling a request', () => {
             baseRoutes([
                 {
                     match: `GET /api/v1/decision-requests/${REQUEST_ID}`,
-                    body: requestBody({ status: 'accepted', accepted_in_version: 3, latest_version: 4 }),
+                    body: requestBody({ status: 'accepted', accepted_in_version: 3, latest_version: 3 }),
                 },
             ]),
         )
@@ -145,8 +145,25 @@ describe('polling a request', () => {
 
         expect(result.structuredContent?.accepted_in_version).toBe(3)
         expect(text(result)).toContain(
-            'accepted at v3; the design changes when the follow-up turn completes (latest is v4)',
+            'accepted at v3; the design changes when the follow-up turn completes (latest is v3)',
         )
+    })
+
+    it('points at the newer version once one exists rather than saying it is still waiting', async () => {
+        const api = fakeApi(
+            baseRoutes([
+                {
+                    match: `GET /api/v1/decision-requests/${REQUEST_ID}`,
+                    body: requestBody({ status: 'accepted', accepted_in_version: 3, latest_version: 4 }),
+                },
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('request_decision_change', { request_id: REQUEST_ID })
+
+        expect(text(result)).toContain('accepted at v3; v4 is newer — read its decisions with get_design')
+        expect(text(result)).not.toMatch(/when the follow-up turn completes/)
     })
 
     it('does not invent the landing version when the server omits it', async () => {

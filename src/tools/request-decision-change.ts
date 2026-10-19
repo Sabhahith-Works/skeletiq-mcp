@@ -157,8 +157,13 @@ function answer(request: z.infer<typeof DecisionRequestSchema>, filed: boolean) 
         lines.push(
             request.accepted_in_version === null
                 ? `accepted; the server did not say which version it landed in (latest is v${request.latest_version})`
-                : `accepted at v${request.accepted_in_version}; the design changes when the follow-up turn ` +
-                      `completes (latest is v${request.latest_version})`,
+                : request.latest_version > request.accepted_in_version
+                  ? // The server does not record which version the follow-up turn produced, so a newer one
+                    // is a reason to look, not proof the change is in it.
+                    `accepted at v${request.accepted_in_version}; v${request.latest_version} is newer — read its ` +
+                    'decisions with get_design (mode "decisions") to see whether it carries the change'
+                  : `accepted at v${request.accepted_in_version}; the design changes when the follow-up turn ` +
+                    `completes (latest is v${request.latest_version})`,
         )
     } else {
         lines.push(`Request ${request.id} dismissed: ${subject}`)

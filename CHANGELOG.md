@@ -24,7 +24,8 @@ new version.
 - **Decisions mode.** `get_design(mode: "decisions")` lists a version's decisions: the option
   chosen, why, what was rejected, and any removed requirement a decision still cites.
 - **Decision requests.** `request_decision_change` proposes a change to a decision and says why;
-  a person answers it in the app, and the request appears in their to-do list.
+  a person answers it in the app, and the request appears in their to-do list. Polling an accepted
+  request names the version it was accepted at and, once a newer version exists, points you at it.
 - **Fitness tests.** `get_design(mode: "fitness")` lists the tests to write in your own repo, and
   `check_drift` accepts each result under its `test_id`.
 - **Evidence checks.** `check_drift` accepts a citation (a file and a quote or symbol) for each
