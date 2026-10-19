@@ -15,14 +15,27 @@
  * reporting against that guess, is a wrong answer wearing a right answer's clothes.
  */
 
+import { realpath, stat } from 'node:fs/promises'
+
 import * as z from 'zod/v4'
 
 import type { McpServer } from '@modelcontextprotocol/server'
 
 import type { SkeletiqClient } from '../http/client.js'
+import { MAX_REFS_PER_CLAIM, verifyEvidence, type EvidenceResult } from '../lib/evidence.js'
 import { factsFromRelease, type DesignResolver } from '../lib/resolve.js'
-import { guard, ok, versionLine } from '../lib/result.js'
+import { failure, guard, ok, versionLine } from '../lib/result.js'
 import { DriftSchema } from '../wire/schemas.js'
+
+const evidenceRef = z
+    .object({
+        path: z.string().min(1).max(512).describe('The file, relative to the repo root.'),
+        quote: z.string().min(1).max(2000).optional().describe('Text that must appear in the file. Checked locally, never sent.'),
+        symbol: z.string().min(1).max(255).optional().describe('An identifier that must appear in the file. Checked locally, never sent.'),
+    })
+    .refine((ref) => ref.quote !== undefined || ref.symbol !== undefined, {
+        message: 'each evidence entry needs a quote or a symbol',
+    })
 
 const input = z.object({
     project_id: z.string().describe('A SkeletIQ project id, or its exact name.'),
@@ -35,6 +48,10 @@ const input = z.object({
             'The version you built from — the `version=` stamped in the AGENTS.md fence. ' +
                 'Defaults to the latest released version. Component ids are only meaningful within one version.',
         ),
+    repo_root: z
+        .string()
+        .optional()
+        .describe('The repository root that evidence paths are relative to. Defaults to the current directory.'),
     covers: z
         .array(z.string())
         .max(500)
@@ -50,6 +67,11 @@ const input = z.object({
                 name: z.string().max(255).optional().describe('The component name, which survives a regeneration when the id does not.'),
                 status: z.enum(['implemented', 'partial', 'not_started']),
                 note: z.string().max(2000).optional(),
+                evidence: z
+                    .array(evidenceRef)
+                    .max(MAX_REFS_PER_CLAIM)
+                    .optional()
+                    .describe('Where in the code this component is built. Verified on this machine; only the path and outcome are sent.'),
             }),
         )
         .max(500)
@@ -80,6 +102,18 @@ const input = z.object({
                 'that holds the client is the source, including a consumer reading a queue. Endpoints may be ' +
                 'component ids or names.',
         ),
+    fitness: z
+        .array(
+            z.object({
+                test_id: z.string().max(300).describe('The id of a fitness test.'),
+                status: z.enum(['pass', 'fail', 'not_written']),
+                test_path: z.string().min(1).max(512).optional().describe('The file holding the test.'),
+                quote: z.string().min(1).max(2000).optional().describe('Text that must appear in that file. Checked locally, never sent.'),
+            }),
+        )
+        .max(500)
+        .optional()
+        .describe('Your result for each fitness test you wrote or could not write.'),
 })
 
 const refs = z.array(z.object({ id: z.string(), name: z.string(), type: z.string() }))
@@ -97,6 +131,13 @@ const output = z.object({
     elsewhere: refs,
     unknown_ids: z.array(z.object({ id: z.string(), suggestions: refs })),
     counts: z.record(z.string(), z.number()),
+    evidence_checked: z.boolean(),
+    unverified: refs,
+    fitness_failing: z.array(z.string()),
+    fitness_unverified: z.array(z.string()),
+    fitness_unknown: z.array(z.string()),
+    checked_against: z.string(),
+    schema_version: z.number().nullable(),
 })
 
 export function registerCheckDrift(server: McpServer, client: SkeletiqClient, resolver: DesignResolver): void {
@@ -113,8 +154,36 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
             outputSchema: output,
             annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
         },
-        async ({ project_id, version, covers, components, extra_components, extra_connections }) =>
+        async ({ project_id, version, repo_root, covers, components, extra_components, extra_connections, fitness }) =>
             guard(async () => {
+                const requested = repo_root ?? process.cwd()
+                let root: string
+                try {
+                    root = await realpath(requested)
+                    if (!(await stat(root)).isDirectory()) throw new Error('not a directory')
+                } catch {
+                    return failure(`repo_root ${requested} cannot be read`)
+                }
+
+                const checked = await Promise.all(
+                    components.map(async ({ evidence, ...component }) => ({
+                        ...component,
+                        ...(evidence ? { evidence: await Promise.all(evidence.map((ref) => verifyEvidence(root, ref))) } : {}),
+                    })),
+                )
+                const fitnessChecked = fitness
+                    ? await Promise.all(
+                          fitness.map(async (entry): Promise<{ test_id: string; status: string; evidence: EvidenceResult[] }> => ({
+                              test_id: entry.test_id,
+                              status: entry.status,
+                              evidence:
+                                  entry.test_path && entry.quote
+                                      ? [await verifyEvidence(root, { path: entry.test_path, quote: entry.quote })]
+                                      : [],
+                          })),
+                      )
+                    : null
+
                 const project = await resolver.resolveProject(project_id)
                 const resolved = await resolver.resolveVersion(project.id, version)
 
@@ -123,9 +192,10 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
                         method: 'POST',
                         body: {
                             covers: covers ?? null,
-                            components,
+                            components: checked,
                             extra_components: extra_components ?? null,
                             extra_connections: extra_connections ?? null,
+                            fitness: fitnessChecked,
                         },
                     }),
                 )
@@ -144,6 +214,13 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
                         suggestions: entry.suggestions ?? [],
                     })),
                     counts: report.counts,
+                    evidence_checked: report.evidence_checked === true,
+                    unverified: report.unverified ?? [],
+                    fitness_failing: report.fitness_failing ?? [],
+                    fitness_unverified: report.fitness_unverified ?? [],
+                    fitness_unknown: report.fitness_unknown ?? [],
+                    checked_against: root,
+                    schema_version: report.schema_version ?? null,
                 }
 
                 const lines: string[] = []
@@ -153,8 +230,21 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
                         : 'Drift found:',
                 )
                 push(lines, 'Not started', report.missing, report.counts.missing)
+                push(lines, 'Unverified', structured.unverified, report.counts.unverified)
                 push(lines, 'Half built', report.partial, report.counts.partial)
                 push(lines, 'You did not mention', report.unreported, report.counts.unreported)
+
+                if (structured.fitness_failing.length) {
+                    lines.push(`Fitness failing (${structured.fitness_failing.length}): ${structured.fitness_failing.join(', ')}`)
+                }
+                if (structured.fitness_unverified.length) {
+                    lines.push(
+                        `Fitness unverified (${structured.fitness_unverified.length}): ${structured.fitness_unverified.join(', ')}`,
+                    )
+                }
+                if (structured.fitness_unknown.length) {
+                    lines.push(`Fitness unknown (${structured.fitness_unknown.length}): ${structured.fitness_unknown.join(', ')}`)
+                }
 
                 if (report.extra_components.length) {
                     lines.push(`In the code but not the design: ${report.extra_components.map((c) => c.name).join(', ')}`)
@@ -191,6 +281,10 @@ export function registerCheckDrift(server: McpServer, client: SkeletiqClient, re
                 }
 
                 lines.push('')
+                if (!structured.evidence_checked) {
+                    lines.push('This SkeletIQ server does not check evidence yet; these are unverified claims.')
+                }
+                lines.push(`Checked against ${root}`)
                 lines.push(versionLine(facts))
                 return ok(structured, lines.join('\n'))
             }),

@@ -2,6 +2,10 @@
  * Drift: the two contracts that decide whether an agent keeps using the tool.
  */
 
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { ARCH_V2, PROJECT_ID, RELEASE_FACTS, baseRoutes, fakeApi, startHarness, type Harness } from './harness.js'
@@ -154,6 +158,27 @@ describe('the report', () => {
         expect(report).toMatch(/You did not mention \(1\): Hot Links Cache \(cache\)/)
     })
 
+    it('prints the true unverified count beside a capped list', async () => {
+        const api = fakeApi(
+            baseRoutes([
+                driftRoute({
+                    unverified: [{ id: 'db', name: 'Links Database', type: 'database' }],
+                    counts: { unverified: 3 },
+                }),
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('check_drift', {
+            project_id: PROJECT_ID,
+            components: [{ id: 'db', status: 'implemented' }],
+        })
+
+        const report = joined(result)
+        expect(report).toContain('Unverified (3)')
+        expect(report).toContain('and 2 more')
+    })
+
     it('prints the true count beside a truncated list', async () => {
         // Every list the server sends is capped at fifty. Printing the list without its count is
         // how a truncated inventory comes to read as a complete one.
@@ -204,3 +229,79 @@ describe('the report', () => {
 function joined(result: { content: { text?: string }[] }): string {
     return result.content.map((block) => block.text ?? '').join('\n')
 }
+
+describe('local evidence', () => {
+    it('sends the path and outcome of evidence and never the quote', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'drift-'))
+        try {
+            await writeFile(path.join(dir, 'svc.ts'), 'export function handleLinks() {}')
+            const api = fakeApi(baseRoutes([driftRoute({ in_sync: true, evidence_checked: true })]))
+            harness = await startHarness(api.fetch)
+
+            const result = await harness.call('check_drift', {
+                project_id: PROJECT_ID,
+                repo_root: dir,
+                components: [
+                    {
+                        id: 'api',
+                        status: 'implemented',
+                        evidence: [
+                            { path: 'svc.ts', quote: 'SECRET-QUOTE-TEXT' },
+                            { path: 'svc.ts', symbol: 'handleLinks' },
+                        ],
+                    },
+                ],
+                fitness: [{ test_id: 't1', status: 'pass', test_path: 'svc.ts', quote: 'SECRET-QUOTE-TEXT' }],
+            })
+
+            const call = api.calls.find((entry) => entry.url.includes('drift-check'))
+            const body = JSON.stringify(call?.body)
+            expect(body).not.toContain('quote')
+            expect(body).not.toContain('SECRET-QUOTE-TEXT')
+            expect(body).not.toContain('handleLinks')
+            expect(call?.body).toMatchObject({
+                components: [
+                    {
+                        evidence: [
+                            { path: 'svc.ts', status: 'failed' },
+                            { path: 'svc.ts', status: 'verified' },
+                        ],
+                    },
+                ],
+            })
+            expect(joined(result)).toContain('Checked against')
+            expect(joined(result)).not.toMatch(/does not check evidence yet/)
+        } finally {
+            await rm(dir, { recursive: true, force: true })
+        }
+    })
+
+    it('says the server does not check evidence when evidence_checked is absent', async () => {
+        const api = fakeApi(baseRoutes([driftRoute({ in_sync: true })]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('check_drift', {
+            project_id: PROJECT_ID,
+            components: [{ id: 'api', status: 'implemented' }],
+        })
+
+        expect(joined(result)).toContain(
+            'This SkeletIQ server does not check evidence yet; these are unverified claims.',
+        )
+    })
+
+    it('errors without sending anything when repo_root cannot be read', async () => {
+        const api = fakeApi(baseRoutes([driftRoute({ in_sync: true })]))
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('check_drift', {
+            project_id: PROJECT_ID,
+            repo_root: '/nonexistent/skeletiq-root',
+            components: [{ id: 'api', status: 'implemented' }],
+        })
+
+        expect(result.isError).toBe(true)
+        expect(joined(result)).toContain('repo_root /nonexistent/skeletiq-root cannot be read')
+        expect(api.calls.some((entry) => entry.url.includes('drift-check'))).toBe(false)
+    })
+})

@@ -626,6 +626,14 @@ export const DriftSchema = z.looseObject({
     extra_connections: z.array(z.looseObject({ source: z.string(), target: z.string() })),
     counts: z.record(z.string(), z.number()),
     release: ReleaseFactsSchema,
+    /** True when the server read the evidence the connector checked. Absent from older servers. */
+    evidence_checked: z.boolean().optional(),
+    /** Covered components reported implemented with no verified citation. */
+    unverified: z.array(ComponentRefSchema).optional(),
+    fitness_failing: z.array(z.string()).optional(),
+    fitness_unverified: z.array(z.string()).optional(),
+    fitness_unknown: z.array(z.string()).optional(),
+    schema_version: z.number().optional(),
 })
 
 // ─── Generation ──────────────────────────────────────────────────────

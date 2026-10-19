@@ -173,14 +173,6 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
     DesignGapListSchema: {
         minted_architecture_id: LATER_RELEASE,
     },
-    DriftSchema: {
-        evidence_checked: LATER_RELEASE,
-        unverified: LATER_RELEASE,
-        fitness_failing: LATER_RELEASE,
-        fitness_unverified: LATER_RELEASE,
-        fitness_unknown: LATER_RELEASE,
-        schema_version: LATER_RELEASE,
-    },
     GenerateResponseSchema: {
         critique: REVIEW_OUTPUT,
         diagram_source: RENDERED_ARTEFACT,
