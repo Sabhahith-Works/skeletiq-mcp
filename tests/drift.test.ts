@@ -8,34 +8,13 @@ import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ARCH_V2, PROJECT_ID, RELEASE_FACTS, baseRoutes, fakeApi, startHarness, type Harness } from './harness.js'
+import { PROJECT_ID, baseRoutes, driftRoute, fakeApi, startHarness, type Harness } from './harness.js'
 
 let harness: Harness | undefined
 afterEach(async () => {
     await harness?.close()
     harness = undefined
 })
-
-function driftRoute(body: Record<string, unknown>) {
-    return {
-        match: `POST /api/v1/architectures/${ARCH_V2}/drift-check`,
-        body: {
-            architecture_id: ARCH_V2,
-            version: 2,
-            in_sync: false,
-            missing: [],
-            unreported: [],
-            partial: [],
-            elsewhere: [],
-            unknown_ids: [],
-            extra_components: [],
-            extra_connections: [],
-            counts: {},
-            release: RELEASE_FACTS,
-            ...body,
-        },
-    }
-}
 
 describe('scope', () => {
     it('reports uncovered components as elsewhere, and says that is not drift', async () => {

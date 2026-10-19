@@ -356,6 +356,28 @@ export const RELEASE_FACTS = {
     newer_draft_exists: true,
 }
 
+/** A drift-check answer on v2: in sync on nothing, every list empty, `body` overriding any field. */
+export function driftRoute(body: Record<string, unknown>): Route {
+    return {
+        match: `POST /api/v1/architectures/${ARCH_V2}/drift-check`,
+        body: {
+            architecture_id: ARCH_V2,
+            version: 2,
+            in_sync: false,
+            missing: [],
+            unreported: [],
+            partial: [],
+            elsewhere: [],
+            unknown_ids: [],
+            extra_components: [],
+            extra_connections: [],
+            counts: {},
+            release: RELEASE_FACTS,
+            ...body,
+        },
+    }
+}
+
 /** v2 released, v3 an unreleased draft — the state the version rule exists to disambiguate. */
 export function architecturePage() {
     return {
