@@ -119,6 +119,13 @@ async function poll(client: SkeletiqClient, requestId: string) {
     try {
         raw = await client.request<unknown>(`/decision-requests/${encodeURIComponent(requestId)}`)
     } catch (error) {
+        // The server's own words for an id it has no row for; any other 404 is a server without the route.
+        if (error instanceof SkeletiqApiError && error.status === 404 && error.message === 'Decision request not found') {
+            return failure(
+                `There is no decision request ${requestId} on this server. Check the id; ` +
+                    'a request is removed when its project is deleted.',
+            )
+        }
         return refused(error)
     }
     return answer(DecisionRequestSchema.parse(raw), false)

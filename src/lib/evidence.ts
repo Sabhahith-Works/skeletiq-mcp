@@ -88,18 +88,23 @@ export async function verifyEvidence(root: string, ref: EvidenceRef): Promise<Ev
         if (!info.isFile()) return failed('not a regular file')
         if (info.size > MAX_EVIDENCE_BYTES) return failed(`file too large (over ${MAX_EVIDENCE_BYTES} bytes)`)
 
-        if (!ref.quote && !ref.symbol) return failed('nothing cited to look for')
+        // Whitespace alone collapses to '', which every file contains: it cites nothing.
+        const quote = ref.quote === undefined ? '' : collapse(ref.quote)
+        const symbol = ref.symbol?.trim() ?? ''
+        if (!quote && !symbol) return failed('nothing cited to look for')
         const content = await readFile(target, 'utf8')
 
-        if (ref.quote && !collapse(content).includes(collapse(ref.quote))) {
+        if (quote && !collapse(content).includes(quote)) {
             return failed('cited text not found in file')
         }
-        if (ref.symbol) {
-            const pattern = new RegExp(`(?<![\\w$])${escapeRegExp(ref.symbol)}(?![\\w$])`)
+        if (symbol) {
+            const pattern = new RegExp(`(?<![\\w$])${escapeRegExp(symbol)}(?![\\w$])`)
             if (!pattern.test(content)) return failed('symbol not found in file')
         }
         return { path: shown, status: 'verified' }
     } catch (error) {
-        return failed(error instanceof Error ? error.message : String(error))
+        // Only the error code: a Node fs message carries the absolute local path, which must not leave the machine.
+        const code = (error as NodeJS.ErrnoException | undefined)?.code
+        return failed(typeof code === 'string' ? `file could not be read (${code})` : 'file could not be read')
     }
 }

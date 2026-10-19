@@ -220,6 +220,44 @@ describe('refusals', () => {
         expect(text(result)).toBe('This SkeletIQ server does not take decision requests yet.')
     })
 
+    it('says the request is unknown when a poll names an id the server does not have', async () => {
+        const api = fakeApi(
+            baseRoutes([
+                {
+                    match: `GET /api/v1/decision-requests/${REQUEST_ID}`,
+                    status: 404,
+                    body: { error: { code: 'NOT_FOUND', message: 'Decision request not found' } },
+                },
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('request_decision_change', { request_id: REQUEST_ID })
+
+        expect(result.isError).toBe(true)
+        expect(text(result)).toBe(
+            `There is no decision request ${REQUEST_ID} on this server. Check the id; ` +
+                'a request is removed when its project is deleted.',
+        )
+    })
+
+    it('says the server does not take decision requests when a poll 404s for another reason', async () => {
+        const api = fakeApi(
+            baseRoutes([
+                {
+                    match: `GET /api/v1/decision-requests/${REQUEST_ID}`,
+                    status: 404,
+                    body: { error: { code: 'NOT_FOUND', message: 'Resource not found' } },
+                },
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('request_decision_change', { request_id: REQUEST_ID })
+
+        expect(text(result)).toBe('This SkeletIQ server does not take decision requests yet.')
+    })
+
     it('passes the server message on a 409', async () => {
         const message = 'This project already has 10 pending agent requests; ask a person to review them in To-do.'
         const api = fakeApi(
