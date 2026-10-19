@@ -1872,6 +1872,84 @@ describe('the build order', () => {
     })
 })
 
+describe('fitness tests', () => {
+    const TEST = {
+        id: 'row-1',
+        source: 'obligation',
+        obligation_id: 'ob-1',
+        subject_ids: ['db'],
+        subject_names: ['Links Database'],
+        assertion: 'Links Database encrypts data at rest.',
+        check: 'Assert the storage encryption flag is set.',
+        level: 'must',
+        layer: 'domain',
+    }
+
+    it('lists each test with its assertion, check, level and the id to report back', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/fitness-tests`,
+                body: { architecture_id: ARCH_V2, version: 2, tests: [TEST], total: 1, truncated: false },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'fitness' })
+
+        expect(text(result)).toMatch(/Links Database \[must\]/)
+        expect(text(result)).toMatch(/assert: Links Database encrypts data at rest\./)
+        expect(text(result)).toMatch(/check: Assert the storage encryption flag is set\./)
+        expect(text(result)).toMatch(/test_id: row-1/)
+        expect(text(result)).not.toMatch(/Showing/)
+    })
+
+    it('says how many of the total it shows when the list is cut', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/fitness-tests`,
+                body: { architecture_id: ARCH_V2, version: 2, tests: [TEST], total: 250, truncated: true },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'fitness' })
+
+        expect(text(result)).toMatch(/Showing 1 of 250\./)
+    })
+
+    it('says the server does not serve fitness tests on a 404', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/fitness-tests`,
+                status: 404,
+                body: { error: { code: 'NOT_FOUND', message: 'Not Found' } },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'fitness' })
+
+        expect(text(result)).toMatch(/This SkeletIQ server does not serve fitness tests yet\./)
+    })
+
+    it('says an unavailable reason as the server gave it', async () => {
+        await open([
+            {
+                match: `GET /api/v1/architectures/${ARCH_V2}/fitness-tests`,
+                body: {
+                    architecture_id: ARCH_V2,
+                    version: 2,
+                    tests: [],
+                    total: 0,
+                    truncated: false,
+                    unavailable: 'No obligations could be derived for this version.',
+                },
+            },
+        ])
+
+        const result = await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'fitness' })
+
+        expect(text(result)).toMatch(/No obligations could be derived for this version\./)
+    })
+})
+
 describe('project resolution', () => {
     it('returns the candidates rather than picking one', async () => {
         const api = fakeApi([

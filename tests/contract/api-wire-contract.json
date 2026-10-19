@@ -1084,6 +1084,120 @@
         }
       }
     },
+    "FitnessTestSchema": {
+      "python_model": "app.schemas.agent_build.FitnessTestResponse",
+      "authority": "nested",
+      "endpoints": [
+        "nested in fitness-tests.tests"
+      ],
+      "fields": {
+        "assertion": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "check": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "layer": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "level": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "obligation_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "source": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "subject_ids": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
+        "subject_names": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
+    "FitnessTestsSchema": {
+      "python_model": "app.schemas.agent_build.FitnessTestsResponse",
+      "authority": "response_model",
+      "endpoints": [
+        "GET /architectures/{architecture_id}/fitness-tests"
+      ],
+      "fields": {
+        "architecture_id": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "schema_version": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "tests": {
+          "required": true,
+          "kind": "list",
+          "nullable": false,
+          "item": "FitnessTestResponse"
+        },
+        "total": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "truncated": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
+        "unavailable": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
+        "version": {
+          "required": true,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        }
+      }
+    },
     "GenerateResponseSchema": {
       "python_model": "app.schemas.chat.GenerateResponse",
       "authority": "response_model",

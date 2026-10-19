@@ -636,6 +636,29 @@ export const DriftSchema = z.looseObject({
     schema_version: z.number().optional(),
 })
 
+/** One test the agent writes in its own repo; `id` is what it reports back through `check_drift.fitness`. */
+export const FitnessTestSchema = z.looseObject({
+    id: z.string(),
+    source: z.string(),
+    obligation_id: z.string().nullable(),
+    subject_ids: z.array(z.string()),
+    subject_names: z.array(z.string()),
+    assertion: z.string(),
+    check: z.string(),
+    level: z.string(),
+    layer: z.string().nullable(),
+})
+
+export const FitnessTestsSchema = z.looseObject({
+    architecture_id: z.string(),
+    version: z.number(),
+    schema_version: z.number().optional(),
+    tests: z.array(FitnessTestSchema),
+    total: z.number(),
+    truncated: z.boolean(),
+    unavailable: z.string().nullable().optional(),
+})
+
 // ─── Generation ──────────────────────────────────────────────────────
 
 /**

@@ -15,6 +15,7 @@ import * as z from 'zod/v4'
 import type { McpServer } from '@modelcontextprotocol/server'
 
 import type { SkeletiqClient } from '../http/client.js'
+import { SkeletiqApiError } from '../http/errors.js'
 import { factsFrom, factsFromRelease, type DesignResolver } from '../lib/resolve.js'
 import { failure, guard, ok, versionLine } from '../lib/result.js'
 import {
@@ -32,6 +33,7 @@ import {
     BriefSchema,
     BuildOrderSchema,
     DesignGapListSchema,
+    FitnessTestsSchema,
     ReadinessSchema,
     TodoSchema,
     type RequirementLedger,
@@ -40,7 +42,7 @@ import {
     type TodoItem,
 } from '../wire/schemas.js'
 
-const MODES = ['overview', 'component', 'brief', 'todo', 'readiness', 'build_order', 'gaps'] as const
+const MODES = ['overview', 'component', 'brief', 'todo', 'readiness', 'build_order', 'gaps', 'fitness'] as const
 
 const input = z.object({
     project_id: z.string().describe('A SkeletIQ project id, or its exact name.'),
@@ -56,7 +58,8 @@ const input = z.object({
                 'handoff, what is recommended, and what is waiting to be accepted. ' +
                 'readiness: the verdict, gate by gate, on whether this design is worth building yet. ' +
                 'build_order: the order to build components in, and why. ' +
-                'gaps: the open questions and unconfirmed assumptions in the design.',
+                'gaps: the open questions and unconfirmed assumptions in the design. ' +
+                'fitness: the tests to write in your own repo, each with the id to report back through check_drift.',
         ),
     component_id: z.string().optional().describe('Required for mode "component". The component id, or its name.'),
     version: z
@@ -383,6 +386,42 @@ export function registerGetDesign(server: McpServer, client: SkeletiqClient, res
                                         : '')
                                 )
                             }),
+                            '',
+                            versionLine(facts),
+                        ].join('\n'))
+                    }
+
+                    case 'fitness': {
+                        const facts = factsFrom(resolved)
+                        let body: unknown
+                        try {
+                            body = await client.request<unknown>(`/architectures/${resolved.architectureId}/fitness-tests`)
+                        } catch (error) {
+                            if (error instanceof SkeletiqApiError && error.status === 404) {
+                                return ok({ ...base, ...facts, data: { tests: [] } }, [
+                                    'This SkeletIQ server does not serve fitness tests yet.',
+                                    versionLine(facts),
+                                ].join('\n'))
+                            }
+                            throw error
+                        }
+                        const fitness = FitnessTestsSchema.parse(body)
+                        if (fitness.unavailable) {
+                            return ok({ ...base, ...facts, data: fitness }, [fitness.unavailable, versionLine(facts)].join('\n'))
+                        }
+                        return ok({ ...base, ...facts, data: fitness }, [
+                            fitness.tests.length === 0
+                                ? 'This version has no fitness tests to write.'
+                                : 'Write these tests in your own repo. Each is a spec, not code. Report each result through ' +
+                                  'check_drift, in `fitness`, under its test_id.',
+                            ...(fitness.truncated ? [`Showing ${fitness.tests.length} of ${fitness.total}.`] : []),
+                            ...fitness.tests.flatMap((test) => [
+                                '',
+                                `- ${test.subject_names.join(', ') || test.subject_ids.join(', ') || 'whole design'} [${test.level}]`,
+                                `  assert: ${test.assertion}`,
+                                `  check: ${test.check}`,
+                                `  test_id: ${test.id}`,
+                            ]),
                             '',
                             versionLine(facts),
                         ].join('\n'))
