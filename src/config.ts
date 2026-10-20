@@ -6,7 +6,7 @@
  */
 
 export const SERVER_NAME = 'skeletiq'
-export const SERVER_VERSION = '0.4.0'
+export const SERVER_VERSION = '0.5.0'
 
 /** The public version of the agent surface this server was written against. */
 export const AGENT_SCHEMA_VERSION = 2

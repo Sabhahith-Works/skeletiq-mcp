@@ -9,6 +9,8 @@ new version.
 
 ## [Unreleased]
 
+## [0.5.0] — unreleased
+
 ### Changed
 
 - `critique_architecture` labels its blended score "Design quality" (was "Architecture").
