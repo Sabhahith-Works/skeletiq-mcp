@@ -9,7 +9,7 @@ new version.
 
 ## [Unreleased]
 
-## [0.5.0] — unreleased
+## [0.5.0] — 2026-10-21
 
 ### Changed
 
