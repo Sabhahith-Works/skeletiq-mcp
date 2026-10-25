@@ -116,6 +116,12 @@
           "nullable": false,
           "item": null
         },
+        "change_label": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "change_requests": {
           "required": false,
           "kind": "list",

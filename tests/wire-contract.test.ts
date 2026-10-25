@@ -146,6 +146,9 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
             'which either reflects the instruction or does not — and an instruction the ' +
             'designer did not carry out is the person’s to re-state, not the builder’s ' +
             'to infer from.',
+        change_label:
+            'A one-line label for the person reading version history. The agent is handed the ' +
+            'design and its contract, not the history row’s caption.',
         edge_direction_notice:
             'A one-time notice that this project’s stored arrows were rewritten to caller → ' +
             'callee. The connector is never handed the old ones: every read is normalised before it ' +
