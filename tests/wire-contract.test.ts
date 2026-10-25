@@ -107,6 +107,8 @@ const QUESTIONS_AND_NOTHING_ELSE =
     'refusal is recognised by their presence, not by anything else in the envelope.'
 
 const LATER_RELEASE = 'Read by the connector in a later release.'
+const TODO_SCOPE_FOR_THE_PERSON =
+    'Scope and cost attribution for the person working the To-do; an agent reads the cards.'
 
 const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
     DecisionRecordViewSchema: {
@@ -229,6 +231,10 @@ const ACKNOWLEDGED_UNREAD: Record<string, Record<string, string>> = {
     },
     TodoItemSchema: {
         accepted_risk: LATER_RELEASE,
+    },
+    TodoSchema: {
+        repairable_problem_keys: TODO_SCOPE_FOR_THE_PERSON,
+        budget_conflict: TODO_SCOPE_FOR_THE_PERSON,
     },
 }
 

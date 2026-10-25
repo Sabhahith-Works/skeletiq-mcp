@@ -2539,6 +2539,12 @@
           "nullable": false,
           "item": null
         },
+        "budget_conflict": {
+          "required": false,
+          "kind": "object",
+          "nullable": true,
+          "item": "TodoBudgetConflictResponse"
+        },
         "can_edit": {
           "required": true,
           "kind": "scalar",
@@ -2579,6 +2585,12 @@
           "required": true,
           "kind": "scalar",
           "nullable": false,
+          "item": null
+        },
+        "repairable_problem_keys": {
+          "required": false,
+          "kind": "list",
+          "nullable": true,
           "item": null
         },
         "unavailable_sources": {
