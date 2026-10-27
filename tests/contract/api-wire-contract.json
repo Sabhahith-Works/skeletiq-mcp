@@ -581,6 +581,12 @@
           "nullable": true,
           "item": null
         },
+        "lifecycle": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": false,
+          "item": null
+        },
         "name": {
           "required": true,
           "kind": "scalar",

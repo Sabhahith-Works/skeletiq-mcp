@@ -70,6 +70,12 @@ export const ComponentSchema = z.looseObject({
     satisfies: z.array(z.string()).nullish(),
     /** Cross-cutting settings realized on the component (encryption, backup, rate limit, …). */
     policies: z.record(z.string(), z.unknown()).nullish(),
+    /**
+     * `existing` (the user already runs it) | `retiring` (this design replaces it). Absent means
+     * `new`: the API never sends `new`, and no design stored before the field existed carries it.
+     * Left as a string: a value this package has not seen is still shown.
+     */
+    lifecycle: z.string().nullish(),
 })
 export type Component = z.infer<typeof ComponentSchema>
 
