@@ -715,7 +715,12 @@ function requirementLine(row: RequirementLedgerRow): string {
     const by = (row.checked_by ?? '').trim()
     const because = reason ? ` — ${reason}${by ? ` (checked by ${by})` : ''}` : by ? ` — checked by ${by}` : ''
     const proposed = row.origin === 'proposed' ? '[proposed] ' : ''
-    return `- ${row.id}${label} ${proposed}${text || '(no text recorded for this requirement)'}${because}`
+    // Ids merged into this row as near-duplicates. The design may still cite one of them, so the
+    // merged id has to appear on the kept row's line for an agent holding `requirement_ids:
+    // ["R22"]` to find what R22 now means. Collapsed like the text, for the same one-line reason.
+    const aliases = (row.aliases ?? []).map((alias) => alias.replace(/\s+/g, ' ').trim()).filter(Boolean)
+    const also = aliases.length > 0 ? ` (also ${aliases.join(', ')})` : ''
+    return `- ${row.id}${also}${label} ${proposed}${text || '(no text recorded for this requirement)'}${because}`
 }
 
 /**

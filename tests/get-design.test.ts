@@ -485,6 +485,31 @@ describe('the requirements a design was built from', () => {
         expect(body).toContain('[proposed] = suggested by the design, not asked for; treat as optional.')
     })
 
+    it('names the ids merged into a requirement on its line, so a citation of either finds it', async () => {
+        // A near-duplicate merged into a kept row is listed on that row's `aliases`. The design may
+        // still cite the merged id, and an agent holding `requirement_ids: ["R22"]` has to find R22
+        // somewhere in this list.
+        await withLedger({
+            rows: [
+                { id: 'R13', text: 'Kept line.', verdict: 'no_gap_found', aliases: ['R22'], cited_by_components: ['api'] },
+                { id: 'R14', text: 'Merged twice.', verdict: 'no_gap_found', aliases: ['R23', 'R24'], cited_by_components: ['api'] },
+                { id: 'R15', text: 'Nothing merged.', verdict: 'no_gap_found', aliases: [], cited_by_components: ['api'] },
+                { id: 'R16', text: 'Older server.', verdict: 'no_gap_found', cited_by_components: ['api'] },
+                { id: 'R17', text: 'Null aliases.', verdict: 'no_gap_found', aliases: null, cited_by_components: ['api'] },
+            ],
+        })
+
+        const body = text(await harness!.call('get_design', { project_id: PROJECT_ID, mode: 'overview' }))
+
+        expect(body).toContain('- R13 (also R22) [no_gap_found] Kept line.')
+        expect(body).toContain('- R14 (also R23, R24) [no_gap_found] Merged twice.')
+        // A row with nothing merged into it prints exactly as it did before the field existed.
+        expect(body).toMatch(/^- R15 \[no_gap_found\] Nothing merged\.$/m)
+        expect(body).toMatch(/^- R16 \[no_gap_found\] Older server\.$/m)
+        expect(body).toMatch(/^- R17 \[no_gap_found\] Null aliases\.$/m)
+        expect(body).not.toMatch(/R1[5-7] \(also/)
+    })
+
     it('still reads a design whose requirement origin this version has never seen', async () => {
         await withLedger({
             rows: [{ id: 'R1', text: 'Imported line.', origin: 'imported', cited_by_components: ['api'] }],

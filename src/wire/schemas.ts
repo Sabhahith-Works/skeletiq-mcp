@@ -206,6 +206,9 @@ export const RequirementLedgerRowSchema = z.looseObject({
     cited_by_components: z.array(z.string()).nullable().optional(),
     /** Indices into `architecture_json.grounded_decisions`, the raw array — blanks are not compacted. */
     cited_by_decisions: z.array(z.number()).nullable().optional(),
+    /** Ids of requirements merged into this one as near-duplicates. A component's `requirement_ids`
+     * may still name one of them, and it means this row. Absent from older APIs. */
+    aliases: z.array(z.string()).nullable().optional(),
     /** `stated` in the person's own words, `proposed` by the analysis, or `accepted` — a proposal a
      * person confirmed. Absent from older APIs. Left as a string: a value this package has not seen
      * must not stop the whole design from parsing. */

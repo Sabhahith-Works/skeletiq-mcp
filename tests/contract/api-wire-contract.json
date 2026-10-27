@@ -2131,6 +2131,12 @@
           "nullable": false,
           "item": null
         },
+        "aliases": {
+          "required": false,
+          "kind": "list",
+          "nullable": false,
+          "item": null
+        },
         "blocks_handoff": {
           "required": true,
           "kind": "scalar",
