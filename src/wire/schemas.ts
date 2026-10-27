@@ -135,6 +135,7 @@ export const GroundedDecisionSchema = z.looseObject({
     source_ids: z.array(z.string()).nullable().optional(),
     requirement_ids: z.array(z.string()).nullable().optional(),
     assumption: z.boolean().optional(),
+    answered: z.boolean().optional(),
     confidence: z.string().optional(),
 })
 export type GroundedDecision = z.infer<typeof GroundedDecisionSchema>
