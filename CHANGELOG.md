@@ -9,6 +9,12 @@ new version.
 
 ## [Unreleased]
 
+### Fixed
+
+- `check_drift` now names `extra_components` and `extra_connections` in its structured output.
+  They were only in the text, so a host that passes the structured half to the model showed
+  counts with no names.
+
 ## [0.6.0] — 2026-11-03
 
 ### Added

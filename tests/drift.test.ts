@@ -64,6 +64,37 @@ describe('scope', () => {
     })
 })
 
+describe('what the design does not have', () => {
+    it('names the extras in the structured half as well as the text', async () => {
+        const extraComponent = { name: 'Rate Limit Redis', type: 'cache', technology: 'Redis' }
+        const extraConnection = { source: 'api', target: 'Rate Limit Redis', protocol: 'Redis' }
+        const api = fakeApi(
+            baseRoutes([
+                driftRoute({
+                    extra_components: [extraComponent],
+                    extra_connections: [extraConnection],
+                    counts: { extra_components: 1, extra_connections: 1 },
+                }),
+            ]),
+        )
+        harness = await startHarness(api.fetch)
+
+        const result = await harness.call('check_drift', {
+            project_id: PROJECT_ID,
+            components: [{ id: 'api', status: 'partial' }],
+            extra_components: [extraComponent],
+            extra_connections: [extraConnection],
+        })
+
+        // A host may hand the model only the structured half, and a count alone doesn't say what
+        // to remove or to add to the design.
+        expect(result.structuredContent?.extra_components).toEqual([extraComponent])
+        expect(result.structuredContent?.extra_connections).toEqual([extraConnection])
+        expect(joined(result)).toMatch(/In the code but not the design: Rate Limit Redis/)
+        expect(joined(result)).toMatch(/Connections the design does not have: api → Rate Limit Redis/)
+    })
+})
+
 describe('stale ids', () => {
     it('offers suggestions and refuses to treat them as a mapping', async () => {
         const api = fakeApi(
