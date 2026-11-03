@@ -9,6 +9,19 @@ new version.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-03
+
+### Added
+
+- **Merged requirement ids.** When a requirement was merged into another as a near-duplicate,
+  `get_design` now lists the old id on the kept requirement's line, as `R7 (also R22)`. A component
+  can still cite the merged id, and this tells your agent what it now means.
+
+### Changed
+
+- The wire schema accepts two new optional fields from the server: `lifecycle` on components and
+  `answered` on grounded decisions. Neither is shown in tool output yet. Older servers work as before.
+
 ## [0.5.0] — 2026-10-21
 
 ### Changed
