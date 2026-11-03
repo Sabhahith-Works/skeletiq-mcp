@@ -9,6 +9,8 @@ new version.
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-11-04
+
 ### Fixed
 
 - `check_drift` now names `extra_components` and `extra_connections` in its structured output.
