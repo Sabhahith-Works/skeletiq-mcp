@@ -767,6 +767,12 @@
           "nullable": false,
           "item": null
         },
+        "holds_ready": {
+          "required": false,
+          "kind": "scalar",
+          "nullable": true,
+          "item": null
+        },
         "impact_area": {
           "required": false,
           "kind": "scalar",

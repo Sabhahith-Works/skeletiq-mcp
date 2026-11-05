@@ -492,6 +492,11 @@ export const CritiqueFindingSchema = z.looseObject({
     /** Reported in full and never charged against the score — advice, not a problem to fix. */
     advisory_only: z.boolean().optional(),
     /**
+     * Whether this finding can hold a design back from Ready. Absent or null means not stated, and
+     * the standing Ready rule applies to it.
+     */
+    holds_ready: z.boolean().nullable().optional(),
+    /**
      * The problem this finding is about. Stable across rewording, and shared with the advisor
      * suggestion and decision record raised by the same problem — the key a dismissal is recorded
      * against.
