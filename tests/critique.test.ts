@@ -113,6 +113,11 @@ describe('the domain profile the agent declares', () => {
 
         expect(result.structuredContent?.frameworks_checked).toEqual(['GDPR', 'PCI-DSS', 'SOC2', 'SOX'])
         expect(result.structuredContent?.compliance_assessed).toBe(true)
+        // A list of frameworks "checked" reads as an audit result unless the line says otherwise.
+        expect(result.content?.[0]?.text ?? '').toContain(
+            'Confirm them. Indicative automated check based on architecture structure — '
+                + 'not a certified compliance audit or legal advice.',
+        )
     })
 
     it('says so when nothing was assessed, instead of implying a clean bill', async () => {
@@ -129,6 +134,10 @@ describe('the domain profile the agent declares', () => {
         expect(result.structuredContent?.compliance_assessed).toBe(false)
         expect(result.structuredContent?.frameworks_checked).toEqual([])
         expect(result.structuredContent?.compliance_note).toMatch(/not assessed/i)
+        expect(result.content?.[0]?.text ?? '').toContain(
+            'Not assessed — no domain was supplied, so no framework applied. Indicative automated check '
+                + 'based on architecture structure — not a certified compliance audit or legal advice.',
+        )
     })
 })
 

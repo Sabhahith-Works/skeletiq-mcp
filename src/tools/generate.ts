@@ -131,7 +131,7 @@ function frameDetail(frame: SseFrame): string | undefined {
 const constraintsInput = z.strictObject({
     budget: z.enum(['low', 'medium', 'high', 'unlimited']).optional(),
     max_latency_ms: z.number().int().positive().optional(),
-    // Free strings, not an enum, and the description has to say why. SkeletIQ assesses five
+    // Free strings, not an enum, and the description has to say why. SkeletIQ assesses six
     // frameworks; naming anything else is still worth doing, because an unassessed regime is
     // recorded and reaches the design brief as a requirement the agent still has to satisfy.
     // The old text read 'e.g. HIPAA, SOC2, PCI-DSS, GDPR' — it omitted SOX, which is the one
@@ -140,7 +140,7 @@ const constraintsInput = z.strictObject({
         .array(z.string())
         .optional()
         .describe(
-            'Regimes the design must satisfy. SOC2, HIPAA, PCI-DSS, GDPR and SOX are checked ' +
+            'Regimes the design must satisfy. SOC2, HIPAA, PCI-DSS, GDPR, SOX and DPDP (India) are checked ' +
                 'against requirement catalogues; any other regime is recorded and carried into the ' +
                 'design brief as a requirement to satisfy, rather than checked.',
         ),

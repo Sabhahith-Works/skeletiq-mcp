@@ -80,6 +80,16 @@ const SCORE_BASIS_NOTE =
     'given a design and no requirement set to trace it against. The app can show a lower number ' +
     'for the same stored design for exactly that reason.'
 
+/**
+ * Said beside every compliance line, assessed or not, because a list of frameworks "checked"
+ * reads as an audit result. Word for word the first sentence of the API's
+ * `COMPLIANCE_DISCLAIMER` (`app/schemas/compliance_schemas.py`), which the app shows on the
+ * panel, the brief and the export. This package cannot import it, so the API's parity test reads
+ * this line and fails when the two drift.
+ */
+const COMPLIANCE_INDICATIVE_NOTE =
+    'Indicative automated check based on architecture structure — not a certified compliance audit or legal advice.'
+
 const output = z.object({
     architecture_score: z.number(),
     score_basis: z
@@ -196,8 +206,9 @@ export function registerCritique(server: McpServer, client: SkeletiqClient): voi
                     complianceAssessed
                         ? `Compliance checked against ${(critique.frameworks_checked ?? []).join(', ')} — `
                           + 'the frameworks systems in this domain are usually held to, inferred from the '
-                          + 'domain you sent rather than from a regime anyone named. Confirm them.'
-                        : (critique.compliance_note ?? 'Compliance was not assessed.'),
+                          + 'domain you sent rather than from a regime anyone named. Confirm them. '
+                          + COMPLIANCE_INDICATIVE_NOTE
+                        : `${critique.compliance_note ?? 'Compliance was not assessed.'} ${COMPLIANCE_INDICATIVE_NOTE}`,
                     // Only when the exposure used is not the one the agent chose. When a
                     // non-public exposure *was* applied the server returns an
                     // `exposure_scoped_checks` finding naming exactly which checks it took off
