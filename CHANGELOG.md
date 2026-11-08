@@ -9,6 +9,22 @@ new version.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-08
+
+### Added
+
+- **DPDP.** `generate_architecture` now lists India's Digital Personal Data Protection Act among the
+  regimes it checks, alongside SOC 2, HIPAA, PCI-DSS, GDPR and SOX.
+
+### Changed
+
+- `critique_architecture` ends every compliance line with "Indicative automated check based on
+  architecture structure — not a certified compliance audit or legal advice." A list of frameworks
+  marked "checked" read like an audit result.
+- The wire schema accepts a new optional field from the server: `holds_ready` on critique findings,
+  saying whether a finding can keep a design from Ready. It is not shown in tool output yet. Older
+  servers work as before.
+
 ## [0.6.1] — 2026-11-04
 
 ### Fixed
