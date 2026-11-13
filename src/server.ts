@@ -76,6 +76,10 @@ function buildServer(client: SkeletiqClient, resolver: DesignResolver): McpServe
         { instructions: INSTRUCTIONS, capabilities: { tools: {} } },
     )
 
+    // One host per stdio process, so the most recently built server is the live one and the
+    // client reads its host from there.
+    client.setHostSource(() => server.server.getClientVersion())
+
     registerListProjects(server, resolver)
     registerGetDesign(server, client, resolver)
     registerGenerate(server, client, resolver)

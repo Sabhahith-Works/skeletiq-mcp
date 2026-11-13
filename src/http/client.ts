@@ -6,10 +6,28 @@
  * any meaning in a process with no browser and one static credential.
  */
 
+import type { Implementation } from '@modelcontextprotocol/server'
+
 import { SERVER_NAME, SERVER_VERSION, type Config } from '../config.js'
 import { parseApiError, SkeletiqApiError, SkeletiqNetworkError } from './errors.js'
 
 const API_PREFIX = '/api/v1'
+
+/** The longest host name or version kept in the User-Agent, after sanitizing. */
+export const HOST_TOKEN_MAX = 64
+
+function hostToken(value: string): string {
+    return value.replace(/[^A-Za-z0-9._~+-]/g, '-').slice(0, HOST_TOKEN_MAX)
+}
+
+/** `skeletiq-mcp/<version>`, plus ` (<host name>/<host version>)` when the host introduced itself. */
+export function userAgent(host: Implementation | undefined): string {
+    const base = `${SERVER_NAME}-mcp/${SERVER_VERSION}`
+    const name = hostToken(host?.name ?? '')
+    if (!name) return base
+    const version = hostToken(host?.version ?? '')
+    return version ? `${base} (${name}/${version})` : `${base} (${name})`
+}
 
 /**
  * A generation can run for the better part of eight minutes (~217 s typical, 450 s at the entry
@@ -29,9 +47,15 @@ export interface RequestOptions {
 
 export class SkeletiqClient {
     private readonly config: Config
+    private hostSource?: () => Implementation | undefined
 
     constructor(config: Config) {
         this.config = config
+    }
+
+    /** Where to read the connected host's name and version from, for the User-Agent. */
+    setHostSource(source: () => Implementation | undefined): void {
+        this.hostSource = source
     }
 
     /** A parsed JSON response, or a thrown `SkeletiqApiError` carrying the server's own words. */
@@ -54,7 +78,7 @@ export class SkeletiqClient {
                 headers: {
                     Authorization: `Bearer ${this.config.apiKey}`,
                     Accept: 'application/json',
-                    'User-Agent': `${SERVER_NAME}-mcp/${SERVER_VERSION}`,
+                    'User-Agent': userAgent(this.hostSource?.()),
                     ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
                     ...options.headers,
                 },

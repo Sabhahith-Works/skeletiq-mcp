@@ -56,6 +56,8 @@ Run `npx -y @skeletiq/mcp` over stdio with `SKELETIQ_API_KEY` in the environment
 | `SKELETIQ_API_KEY` | yes | — | A personal API token, starting `skq_`. Not a browser session token. |
 | `SKELETIQ_API_URL` | no | `https://api.skeletiq.com` | For self-hosted installs. A trailing `/api/v1` is accepted and trimmed. |
 
+Every request carries a User-Agent of the form `skeletiq-mcp/<version> (<host name>/<host version>)`, naming the MCP host that launched the server.
+
 ## Scopes
 
 A token grants only what you tick. The server's tools need:

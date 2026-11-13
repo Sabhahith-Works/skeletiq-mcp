@@ -9,6 +9,10 @@ new version.
 
 ## [Unreleased]
 
+### Changed
+
+- The User-Agent now names the MCP host and its version (for example `claude-code/2.1.0`). SkeletIQ records it with the token's last use.
+
 ## [0.7.0] — 2026-11-08
 
 ### Added
