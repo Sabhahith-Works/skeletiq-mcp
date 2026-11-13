@@ -7,7 +7,7 @@
  * It deliberately does not restate what the tool descriptions already say.
  */
 
-import { McpServer } from '@modelcontextprotocol/server'
+import { CLIENT_INFO_META_KEY, type Implementation, McpServer } from '@modelcontextprotocol/server'
 
 import { SERVER_NAME, SERVER_VERSION, type Config } from './config.js'
 import { SkeletiqClient } from './http/client.js'
@@ -77,8 +77,15 @@ function buildServer(client: SkeletiqClient, resolver: DesignResolver): McpServe
     )
 
     // One host per stdio process, so the most recently built server is the live one and the
-    // client reads its host from there.
-    client.setHostSource(() => server.server.getClientVersion())
+    // client reads its host from there. A 2026-07-28 host sends no `initialize`: it names itself
+    // on every request's `_meta` envelope, and the stdio entry does not copy that into
+    // getClientVersion(). So the envelope of the latest tool call wins, and the handshake value
+    // covers 2025-era hosts.
+    let envelopeHost: Implementation | undefined
+    recordEnvelopeHost(server, (host) => {
+        envelopeHost = host
+    })
+    client.setHostSource(() => envelopeHost ?? server.server.getClientVersion())
 
     registerListProjects(server, resolver)
     registerGetDesign(server, client, resolver)
@@ -88,4 +95,36 @@ function buildServer(client: SkeletiqClient, resolver: DesignResolver): McpServe
     registerRequestDecisionChange(server, client, resolver)
 
     return server
+}
+
+type ToolHandler = (...args: unknown[]) => unknown
+
+/**
+ * Wraps `registerTool` so every tool call reports the host named in its request envelope before the
+ * tool runs. The SDK passes the request context as the handler's last argument, with or without an
+ * input schema.
+ */
+function recordEnvelopeHost(server: McpServer, record: (host: Implementation) => void): void {
+    const register = server.registerTool.bind(server) as unknown as (
+        name: string,
+        config: unknown,
+        handler: ToolHandler,
+    ) => unknown
+    const registerRecording = (name: string, config: unknown, handler: ToolHandler): unknown =>
+        register(name, config, (...args: unknown[]) => {
+            const host = envelopeHostOf(args.at(-1))
+            if (host) record(host)
+            return handler(...args)
+        })
+    server.registerTool = registerRecording as unknown as typeof server.registerTool
+}
+
+/** The host's name and version from a request context's `_meta` envelope, when it carries them. */
+export function envelopeHostOf(ctx: unknown): Implementation | undefined {
+    const envelope = (ctx as { mcpReq?: { envelope?: Record<string, unknown> } } | undefined)?.mcpReq?.envelope
+    const info = envelope?.[CLIENT_INFO_META_KEY]
+    if (typeof info !== 'object' || info === null) return undefined
+    const { name, version } = info as { name?: unknown; version?: unknown }
+    if (typeof name !== 'string' || !name) return undefined
+    return { name, version: typeof version === 'string' ? version : '' }
 }

@@ -3,13 +3,19 @@
  */
 
 import { Client } from '@modelcontextprotocol/client'
-import { InMemoryTransport } from '@modelcontextprotocol/server'
+import {
+    CLIENT_CAPABILITIES_META_KEY,
+    CLIENT_INFO_META_KEY,
+    InMemoryTransport,
+    type JSONRPCMessage,
+    PROTOCOL_VERSION_META_KEY,
+} from '@modelcontextprotocol/server'
 import { serveStdio } from '@modelcontextprotocol/server/stdio'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { SERVER_VERSION } from '../src/config.js'
 import { HOST_TOKEN_MAX, userAgent } from '../src/http/client.js'
-import { createServerFactory } from '../src/server.js'
+import { createServerFactory, envelopeHostOf } from '../src/server.js'
 import { baseRoutes, fakeApi, TEST_CONFIG } from './harness.js'
 
 const previousFetch = globalThis.fetch
@@ -35,6 +41,54 @@ describe('the User-Agent', () => {
         }
 
         expect(api.calls[0]?.headers['user-agent']).toBe(`skeletiq-mcp/${SERVER_VERSION} (harness/0.0.0)`)
+    })
+
+    it('names a 2026-era host that sends no initialize', async () => {
+        const api = fakeApi(baseRoutes())
+        globalThis.fetch = api.fetch
+
+        // Claude Code on protocol 2026-07-28 skips the handshake and names itself on every
+        // request's `_meta` envelope, so getClientVersion() never fills in on the stdio entry.
+        const meta = {
+            [PROTOCOL_VERSION_META_KEY]: '2026-07-28',
+            [CLIENT_INFO_META_KEY]: { name: 'claude-code', version: '2.1.323' },
+            [CLIENT_CAPABILITIES_META_KEY]: {},
+        }
+        const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+        const replies = new Map<number, (message: JSONRPCMessage) => void>()
+        clientSide.onmessage = (message) => {
+            if ('id' in message && typeof message.id === 'number') replies.get(message.id)?.(message)
+        }
+        const handle = serveStdio(createServerFactory(TEST_CONFIG), { transport: serverSide })
+        await clientSide.start()
+        const request = (id: number, method: string, params: Record<string, unknown>) =>
+            new Promise<JSONRPCMessage>((resolve) => {
+                replies.set(id, resolve)
+                void clientSide.send({ jsonrpc: '2.0', id, method, params: { ...params, _meta: meta } })
+            })
+        try {
+            await request(1, 'server/discover', {})
+            const reply = await request(2, 'tools/call', { name: 'list_projects', arguments: {} })
+            expect('error' in reply).toBe(false)
+        } finally {
+            await clientSide.close()
+            await handle.close()
+        }
+
+        expect(api.calls[0]?.headers['user-agent']).toBe(`skeletiq-mcp/${SERVER_VERSION} (claude-code/2.1.323)`)
+    })
+
+    it('reads the host from a request envelope', () => {
+        const ctx = (info: unknown) => ({ mcpReq: { envelope: { [CLIENT_INFO_META_KEY]: info } } })
+        expect(envelopeHostOf(ctx({ name: 'claude-code', version: '2.1.323' }))).toEqual({
+            name: 'claude-code',
+            version: '2.1.323',
+        })
+        expect(envelopeHostOf(ctx({ name: 'cursor' }))).toEqual({ name: 'cursor', version: '' })
+        expect(envelopeHostOf(ctx({ name: '' }))).toBeUndefined()
+        expect(envelopeHostOf(ctx('claude-code'))).toBeUndefined()
+        expect(envelopeHostOf({ mcpReq: {} })).toBeUndefined()
+        expect(envelopeHostOf(undefined)).toBeUndefined()
     })
 
     it('without a host', () => {
