@@ -9,6 +9,12 @@ new version.
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-11-13
+
+### Fixed
+
+- The User-Agent now names hosts on protocol revision 2026-07-28, such as Claude Code. They identify themselves on every request instead of in an `initialize` handshake, so 0.7.1 sent the bare `skeletiq-mcp/0.7.1` for them.
+
 ## [0.7.1] — 2026-11-13
 
 ### Changed
